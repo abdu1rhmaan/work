@@ -1,0 +1,251 @@
+import re
+from textual.app import ComposeResult
+from textual.containers import Container, Horizontal, Vertical
+from textual.widgets import Button, Static, Label, Input, Select, DataTable, ListItem
+from textual.strip import Strip
+from rich.segment import Segment
+from textual.containers import Horizontal
+from textual.reactive import reactive
+from textual.message import Message
+from textual import events
+from typing import Optional, Callable, Dict, Any
+from ..utils import format_arabic
+
+class CustomButton(Button):
+    """زر مخصص يحافظ على الحجم الثابت"""
+    
+    def __init__(self, label: str, id: Optional[str] = None, custom_width: int = 30, **kwargs):
+        super().__init__(label, id=id, **kwargs)
+        self.custom_width = custom_width
+    
+    def render(self) -> str:
+        """رسم الزر مع الحفاظ على الحجم"""
+        label = self.label.plain
+        # معالجة العربي قبل التقطيع لضمان الطول الصحيح ومعالجة العرض
+        formatted_label = format_arabic(label)
+        
+        if len(formatted_label) > self.custom_width:
+            formatted_label = formatted_label[:self.custom_width-3] + "..."
+        
+        width = self.custom_width
+        # ملاحظة: التحاذي قد يكون صعباً مع العربي في بعض التيرمينالز، لكن سنحاول التوسط
+        padding = (width - len(formatted_label)) // 2
+        left_pad = " " * padding
+        right_pad = " " * (width - len(formatted_label) - padding)
+        
+        if self.has_focus:
+            return f"[reverse]{left_pad}{formatted_label}{right_pad}[/]"
+        else:
+            return f"{left_pad}{formatted_label}{right_pad}"
+
+class WalletDisplay(Static):
+    """عرض المحفظة"""
+    
+    value = reactive(0.0)
+    
+    def __init__(self, label: str, value: float = 0.0, **kwargs):
+        super().__init__(**kwargs)
+        self.label = label
+        self.value = value
+    
+    def watch_value(self, value: float) -> None:
+        """تحديث العرض عند تغيير القيمة"""
+        formatted_value = f"{value:,.2f} EGP"
+        if value >= 0:
+            display_text = f"{self.label}: {formatted_value}"
+        else:
+            display_text = f"{self.label}: -{formatted_value[1:]}"
+        
+        self.update(format_arabic(display_text))
+
+class ModeDisplay(Static):
+    """عرض وضع المحاسبة"""
+    
+    mode = reactive("CASH")
+    
+    def __init__(self, mode: str = "CASH", **kwargs):
+        super().__init__(**kwargs)
+        self.mode = mode
+    
+    def watch_mode(self, mode: str) -> None:
+        """تحديث العرض عند تغيير الوضع"""
+        if mode == "CASH":
+            self.update("[ Mode: CASH ]")
+        else:
+            self.update("[ Mode: VISA ]")
+
+class BatchDisplay(Static):
+    """عرض الباتش الحالي"""
+    
+    batch = reactive("1")
+    
+    def __init__(self, batch: str = "1", **kwargs):
+        super().__init__(**kwargs)
+        self.batch = batch
+    
+    def watch_batch(self, batch: str) -> None:
+        """تحديث العرض عند تغيير الباتش"""
+        self.update(f"[ Batch: {batch} ]")
+
+class HistoryTable(DataTable):
+    """جدول التاريخ التفاعلي مع دعم الاختيار المتعدد"""
+    
+    class RowClicked(Message, bubble=True):
+        """رسالة عند الضغط على سطر (ضغطة واحدة)"""
+        def __init__(self, row_key):
+            super().__init__()
+            self.row_key = row_key
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.cursor_type = "row"
+        self.zebra_stripes = True
+        # إضافة عمود الاختيار في البداية مع مفاتيح للأعمدة
+        self.add_column("✓", key="sel")
+        self.add_column("ID", key="id")
+        self.add_column("Date", key="date")
+        self.add_column("Type", key="type")
+        self.add_column("Paid", key="paid")
+        self.add_column("Expected", key="expected")
+        self.add_column("Actual", key="actual")
+        self.add_column("Profit", key="profit")
+    
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        """اكتشاف الضغط بالماوس على السطر فوراً"""
+        try:
+            # محاولة الحصول على السطر بناءً على الإحداثيات
+            row_index = self.get_row_at(event.y)
+            
+            # Fallback في حال كانت الاحداثيات خارج النطاق المباشر (لأن الهيدر له مكان)
+            if row_index is None:
+                # حساب يدوي: (Y بالنسبة للويدجت - 1 للهيدر) + السكرول
+                row_index = (event.y - 1) + self.scroll_y
+            
+            if 0 <= row_index < self.row_count:
+                row_key = self.get_row_key_at(row_index)
+                self.post_message(self.RowClicked(row_key))
+        except Exception:
+            pass
+    
+class HistoryRow(ListItem):
+    """سطر تاريخ يحتوي على زر حقيقي للاختيار"""
+    
+    class ToggleSelection(Message):
+        """رسالة عند ضغط زر السيلكت"""
+        def __init__(self, order_id: str):
+            super().__init__()
+            self.order_id = order_id
+
+    def __init__(self, order: Dict[str, Any], display_id: int, is_selected: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.order = order
+        self.display_id = display_id
+        self.is_selected = is_selected
+        self.order_id = str(order.get('id', ''))
+
+    def compose(self):
+        with Horizontal(classes="history-row-content"):
+            # استخدام Label بدل Button للتحكم الكامل في العرض بدون أي مسافات زائدة
+            btn_text = "[●]" if self.is_selected else "[ ]"
+            yield Label(btn_text, id=f"sel-{self.order_id}", classes="row-sel-toggle " + ("selected" if self.is_selected else ""))
+            
+            # بيانات السطر
+            yield Label(str(self.display_id), classes="col-id")
+            yield Label(self.order.get('datetime', '')[:10], classes="col-date")
+            yield Label(format_arabic(self.order.get('order_type', '')), classes="col-type")
+            
+            profit = (self.order.get('delivery_fee', 0) + 
+                     self.order.get('tip_cash', 0) + 
+                     self.order.get('tip_visa', 0))
+            yield Label(f"{profit:.2f}", classes="col-profit")
+
+    def on_click(self, event: events.Click) -> None:
+        # إذا كانت الضغطة على المربع (Label [ ])
+        # نستخدم event.control أو id للوصول الدقيق
+        if event.control and event.control.id == f"sel-{self.order_id}":
+            self.post_message(self.ToggleSelection(self.order_id))
+            event.stop() # منع وصول الضغطة للـ ListView
+            event.prevent_default()
+        elif "row-sel-toggle" in event.style.meta.get("classes", []):
+            self.post_message(self.ToggleSelection(self.order_id))
+            event.stop()
+            event.prevent_default()
+
+class OptionSelector(Static):
+    """مكون لاختيار خيار من مجموعة أزرار"""
+    
+    class Selected(Message):
+        """رسالة عند اختيار قيمة"""
+        def __init__(self, selector: "OptionSelector", value: str):
+            super().__init__()
+            self.selector = selector
+            self.value = value
+
+    def __init__(self, options: list[tuple[str, str]], value: str, id: str = None):
+        super().__init__(id=id)
+        self.options = options
+        self.value = value
+        self.buttons = {}
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(classes="option-selector"):
+            for label, val in self.options:
+                btn = Button(format_arabic(label), id=f"opt-{val}", classes="option-button")
+                if val == self.value:
+                    btn.add_class("active")
+                self.buttons[val] = btn
+                yield btn
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """معالجة ضغط الأزرار لتغيير القيمة النشطة"""
+        event.stop()
+        new_val = event.button.id.replace("opt-", "")
+        
+        # إزالة الكلاس النشط من الجميع وإضافته للمختار
+        for btn in self.buttons.values():
+            btn.remove_class("active")
+        
+        self.buttons[new_val].add_class("active")
+        self.value = new_val
+        
+        # إرسال رسالة بتغيير القيمة
+        self.post_message(self.Selected(self, new_val))
+
+class ArabicInput(Input):
+    """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
+
+    def _render_line(self, y: int) -> Strip:
+        """تخصيص رسم السطر لدعم العربي والمحاذاة المباشرة"""
+        # استدعاء الرسم الأصلي للحصول على الـ Strip (الذي يحتوي على النص والمؤشر)
+        strip = super()._render_line(y)
+        
+        # إذا لم يكن هناك نص، نعود بالرسم الأصلي
+        if not self.value and not self.placeholder:
+            return strip
+
+        # معالجة النص الظاهر (سواء كان القيمة أو الـ placeholder)
+        display_text = self.value if self.value else self.placeholder
+        
+        # فحص اللغة وحساب المحاذاة
+        is_arabic = any('\u0600' <= c <= '\u06FF' for c in display_text)
+        
+        if is_arabic:
+            # معالجة العربي
+            formatted_text = format_arabic(display_text)
+            
+            # حساب الفراغ للمحاذاة لليمين
+            padding = max(0, self.size.width - len(formatted_text) - 4) # -4 للهوامش الداخلية
+            
+            # إنشاء سطر جديد محاذى لليمين
+            segments = []
+            if padding > 0:
+                segments.append(Segment(" " * padding))
+            segments.append(Segment(formatted_text, self.rich_style))
+            
+            return Strip(segments)
+            
+        return strip
+
+    def watch_value(self, value: str) -> None:
+        """تحديث الواجهة عند كل تغيير"""
+        self.refresh()

@@ -1,0 +1,804 @@
+Screen {
+    background: $surface;
+    layers: base popup;
+}
+
+#dashboard {
+    padding: 1 2;
+    height: 100%;
+}
+
+#info-row {
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    border: panel $primary;
+    margin-bottom: 1;
+}
+
+#mode-display, #batch-display {
+    width: 1fr;
+    height: 100%;
+    content-align: center middle;
+    padding: 0;
+    margin: 0;
+}
+
+#wallets-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
+#personal-wallet {
+    width: 1fr;
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    border: panel $primary;
+    margin: 0 0 1 0;
+    padding: 0;
+}
+
+#company-wallet {
+    width: 1fr;
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    border: panel $primary;
+    margin: 0 0 1 0;
+    padding: 0;
+}
+
+#company-wallet.credit-balance {
+    background: $success-darken-1;
+    border: panel $success;
+    color: white;
+}
+
+#company-wallet.debt-balance {
+    background: $error-darken-1;
+    border: panel $error;
+    color: white;
+}
+
+#main-buttons {
+    layout: grid;
+    grid-size: 2;
+    grid-gutter: 1 2;
+    height: auto;
+    margin-bottom: 1;
+}
+
+CustomButton {
+    width: 100%;
+    background: $boost;
+    color: $text;
+    border: none;
+}
+
+CustomButton:focus {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+#stats-container {
+    height: auto;
+    border: round $primary;
+    padding: 1 2;
+    background: $panel;
+}
+
+#stats-display {
+    width: 100%;
+    text-align: center;
+}
+
+/* Modal Screens Styles */
+
+ModalScreen {
+    background: $surface 60%;
+    align: center middle;
+}
+
+.modal-dialog {
+    width: 80%;
+    max-width: 120;
+    height: 80%;
+    background: $surface;
+    border: thick $primary;
+    padding: 1 2;
+}
+
+.small-modal {
+    width: 70;
+    max-width: 90%;
+    height: auto;
+}
+
+#settings-dialog {
+    width: 60;
+    max-width: 90%;
+    height: auto;
+}
+
+#settings-button-grid {
+    grid-size: 2 3;
+    grid-gutter: 1 2;
+    width: 100%;
+    max-width: 100;
+    height: auto;
+    margin-top: 1;
+}
+
+#shift-indicator {
+    width: 100%;
+    height: 2;
+    text-align: center;
+    background: $panel;
+    border: solid $primary;
+    margin: 1 0;
+    padding: 0 1;
+    content-align: center middle;
+}
+
+#shift-summary-content {
+    padding: 1 2;
+}
+
+.shift-stat {
+    text-align: center;
+    margin-bottom: 1;
+    text-style: bold;
+    color: $accent;
+}
+
+.shift-detail {
+    text-align: center;
+    color: $text;
+}
+
+.shift-profit {
+    text-align: center;
+    text-style: bold;
+    color: $success;
+}
+
+.divider-text {
+    text-align: center;
+    color: $primary-darken-1;
+}
+
+#shift-summary-buttons {
+    align: center middle;
+    width: 100%;
+    margin-top: 1;
+}
+
+#shifts-history-dialog {
+    height: auto !important;
+    max-height: 80%;
+    width: 90%;
+    max-width: 700;
+    layout: grid;
+    grid-size: 1 5;
+    grid-rows: 3 2 auto 2 3;
+    padding: 0;
+}
+
+#shifts-history-body {
+    height: auto;
+    width: 100%;
+    border: none; 
+    padding-bottom: 0;
+}
+
+#shifts-history-content {
+    height: auto;
+    max-height: 15;
+    width: 100%;
+    scrollbar-size-vertical: 1;
+}
+.layout-spacer {
+    height: 2;
+    min-height: 2;
+    width: 100%;
+    background: transparent;
+}
+
+.layout-spacer-top {
+    height: 2;
+    min-height: 2;
+    width: 100%;
+    background: $primary;
+}
+
+ShiftHistoryRow {
+    height: auto;
+    width: 100%;
+    background: $panel;
+    margin: 0;
+    padding: 0 1;
+    layout: grid;
+    grid-size: 4 1;
+    grid-columns: 3fr 2fr 2fr 3fr; 
+    align-vertical: middle;
+}
+
+/* Better selection style */
+ShiftHistoryRow:focus {
+    background: $primary-darken-1;
+}
+
+ShiftHistoryRow:hover {
+    background: $primary-darken-1;
+}
+
+.shift-info-container {
+    display: none; 
+}
+
+.shift-date {
+    width: 100%;
+    color: $text-muted;
+    content-align: left middle;
+}
+
+.shift-duration {
+    width: 100%;
+    color: $accent;
+    content-align: center middle;
+}
+
+.shift-orders {
+    width: 100%;
+    color: $text;
+    content-align: center middle;
+}
+
+.shift-profit {
+    width: 100%;
+    color: $success;
+    text-style: bold;
+    text-align: right; 
+    content-align: right middle;
+}
+
+.shift-active-label {
+    width: auto;
+    color: $success;
+    text-style: bold;
+    padding: 0 1; 
+}
+
+#dialog-buttons {
+    height: auto;
+    align: center middle;
+    margin-top: 0; 
+    padding-bottom: 0;
+}
+
+#button-grid Button {
+    width: 100%;
+    min-width: 20;
+    height: 3;
+}
+
+.analysis-modal {
+    width: 85;
+    height: auto;
+    max-height: 75%;
+    border: thick $primary;
+}
+
+#history-dialog-main.analysis-modal {
+    width: 85 !important;
+    height: auto !important;
+    max-height: 75%;
+}
+
+#history-dialog-main.analysis-modal #history-content {
+    padding: 0 2; /* تأمين مسافة كافية لمنع تداخل الحواف */
+    align-horizontal: center;
+}
+
+#history-dialog-main.analysis-modal #analysis-view {
+    min-height: 10;
+    padding: 1 3;
+}
+
+#add-order-dialog, #settlement-dialog, #db-mgmt-dialog, #order-details-dialog, #settlement-details-dialog, #wallet-dialog {
+    width: 80;
+    height: auto;
+    background: $surface;
+    border: thick $primary;
+    padding: 1 2;
+}
+
+#txn-details-dialog {
+    width: 60;
+    height: auto;
+    background: $surface;
+    border: thick $primary;
+    padding: 1 2;
+}
+
+#txn-details-dialog.txn-details-in {
+    border: thick $success-darken-1;
+}
+
+#txn-details-dialog.txn-details-out {
+    border: thick $error-darken-1;
+}
+
+#txn-details-dialog.txn-details-in #title {
+    background: $success-darken-1;
+}
+
+#txn-details-dialog.txn-details-out #title {
+    background: $error-darken-1;
+}
+
+#details-amount-text {
+    margin-top: 1;
+    text-style: bold;
+}
+
+.txn-details-in #details-amount-text {
+    color: $success;
+}
+
+.txn-details-out #details-amount-text {
+    color: $error-lighten-1;
+}
+
+#details-header {
+    height: 3;
+    content-align: center middle;
+    border-bottom: solid $primary-lighten-1;
+    margin-bottom: 1;
+}
+
+#details-title {
+    width: 1fr;
+    text-style: bold;
+    color: $accent;
+}
+
+.close-button {
+    min-width: 3;
+    width: 3;
+    background: $error-darken-2;
+    color: white;
+    border: none;
+}
+
+.close-button:hover {
+    background: $error;
+}
+
+#history-dialog, #settings-dialog, #prices-dialog {
+    width: 90%;
+    height: 90%;
+}
+
+#history-content, #settings-content, #prices-content, #settlement-content {
+    width: 100%;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+.batch-group {
+    height: auto;
+    border: dashed $primary;
+    margin-bottom: 1;
+    padding: 0 1;
+}
+
+.batch-header {
+    width: 100%;
+    text-align: center;
+    color: $accent;
+    text-style: bold italic;
+    margin-bottom: 1;
+}
+
+.price-field {
+    height: 1;
+    align: left middle;
+    margin-bottom: 0;
+}
+
+.price-field Input {
+    height: 1;
+    border: none;
+    padding: 0 1;
+}
+
+.field-label {
+    width: 20;
+}
+
+.price-field Input {
+    width: 1fr;
+}
+
+#title {
+    width: 100%;
+    text-align: center;
+    text-style: bold;
+    background: $primary;
+    color: $text;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+#form-container, #settlement-content, #settings-content, #mode-setting, #batch-setting {
+    width: 100%;
+    height: auto;
+    margin-bottom: 1;
+}
+
+Horizontal {
+    height: auto;
+}
+
+Vertical {
+    height: auto;
+}
+
+Input, Select {
+    margin-bottom: 1;
+    width: 100%;
+}
+
+#dialog-buttons, #settings-buttons, #settings-buttons-grid, #prices-buttons, #history-buttons, #chart-buttons {
+    margin-top: 1;
+    height: auto;
+}
+
+#settings-buttons-grid {
+    layout: grid;
+    grid-size: 2;
+    grid-gutter: 1;
+    margin-top: 1;
+}
+
+#dialog-buttons CustomButton, 
+#settings-buttons CustomButton, 
+#settings-buttons-grid CustomButton,
+#prices-buttons CustomButton, 
+#history-buttons CustomButton, 
+#chart-buttons CustomButton {
+    width: 1fr;
+    margin: 0 1;
+}
+
+.mgmt-group {
+    background: $primary-darken-2;
+    border: solid $primary;
+    padding: 1;
+    margin: 1 0;
+    height: auto;
+}
+
+.mgmt-group Static {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.option-selector {
+    height: 1;
+    margin: 0 0 1 0;
+    padding: 0;
+    align: center middle;
+    width: 100%;
+}
+
+.option-button {
+    width: 1fr;
+    height: 1;
+    border: none;
+    background: $boost;
+    color: $text-muted;
+    min-width: 4;
+    padding: 0;
+}
+
+.option-button:hover {
+    background: $primary-darken-1;
+}
+
+.option-button.active {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+#mode-setting, #batch-setting {
+    margin-bottom: 1;
+    border: none;
+    background: transparent;
+}
+
+#delivery-info-note {
+    width: 100%;
+    height: 1;
+    text-align: center;
+    color: $text;
+    margin: 1 0;
+    padding: 0;
+}
+
+/* Table and Chart */
+/* History List and Buttons */
+#filter-section {
+    padding: 1 2;
+    background: $surface;
+    border-bottom: solid $primary-darken-2;
+    margin-bottom: 1;
+}
+
+#filter-section .option-selector {
+    margin-bottom: 1;
+}
+
+#history-header {
+    height: 1;
+    width: 100%;
+    background: $primary-darken-2;
+    color: $accent;
+    text-style: bold;
+    padding: 0;
+}
+
+#history-header Label {
+    height: 1;
+    text-align: center;
+    content-align: center middle;
+}
+
+#history-list {
+    height: 1fr;
+    width: 100%;
+    background: $surface;
+    border: none;
+    overflow-y: scroll;
+    scrollbar-size: 0 0; /* إخفاء السكرول بار تماماً لمنع الشريط الأسود */
+}
+
+HistoryRow {
+    height: 1;
+    background: $surface;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+HistoryRow:focus {
+    background: $primary 20%;
+}
+
+.history-row-content {
+    height: 1;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.row-sel-toggle {
+    width: 3;
+    height: 1;
+    margin: 0;
+    padding: 0;
+    background: $surface;
+    color: $text-disabled;
+    text-align: center;
+}
+
+.row-sel-toggle.selected {
+    color: $accent;
+    text-style: bold;
+}
+
+.history-row-content Label {
+    height: 100%;
+    content-align: center middle;
+}
+
+.col-sel { width: 3; }
+.col-id { width: 8; }
+.col-date { width: 14; }
+.col-type { width: 1fr; }
+.col-profit { width: 12; text-align: center; }
+
+#period-buttons {
+    height: 3;
+    margin-bottom: 2; /* زيادة المسافة تحت الزر */
+    content-align: center middle;
+}
+
+#period-toggle {
+    width: 30;
+    height: 1;
+    background: $boost;
+    color: $text;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+#period-toggle:focus {
+    background: $primary;
+    color: white;
+}
+
+#analysis-view {
+    height: 1fr;
+    min-height: 20;
+    margin-top: 1; /* التأكد من وجود مسافة فوق التحليل */
+    background: $surface;
+    color: $text;
+    border: round $primary;
+    padding: 1 4;
+    content-align: left top;
+}
+
+#delivery-fee-display {
+    background: $primary-darken-3;
+    color: $accent;
+    text-align: center;
+    text-style: bold;
+    border: solid $accent;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+/* Wallet Screen Styles */
+#wallet-info-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
+#wallet-personal {
+    width: 1fr;
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    border: panel $primary;
+    margin-right: 1;
+}
+
+#wallet-company {
+    width: 1fr;
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    border: panel $primary;
+}
+
+.section-title {
+    text-style: bold;
+    color: $accent;
+    margin: 1 0;
+}
+
+#expense-form {
+    padding: 1;
+    background: $surface;
+    border: solid $primary-darken-1;
+}
+
+#expense-buttons {
+    margin-top: 1;
+    height: 3;
+    content-align: center middle;
+}
+
+#expense-list {
+    height: 10;
+    margin-top: 1;
+    border: solid $primary-darken-2;
+    background: $surface;
+}
+
+.divider {
+    width: 100%;
+    height: 1;
+    border-top: tall white 20%;
+    margin: 1 0;
+}
+
+.expense-row-content {
+    padding: 0 1;
+}
+
+.expense-date {
+    width: 12;
+    color: $text-muted;
+}
+
+.expense-desc {
+    width: 1fr;
+}
+
+.expense-amount {
+    width: 10;
+    text-align: right;
+    color: $success;
+    text-style: bold;
+}
+
+/* Enhanced Wallet Styles */
+#wallet-stats-bar {
+    height: 3;
+    background: $primary-darken-2;
+    color: white;
+    content-align: center middle;
+    border: panel $primary;
+    margin-bottom: 1;
+}
+
+.txn-in {
+    background: $success-darken-3;
+}
+
+.txn-out {
+    background: $error-darken-3;
+}
+
+.txn-in .expense-amount {
+    color: $success;
+}
+
+.txn-out .expense-amount {
+    color: $error-lighten-1;
+}
+
+#txn-type-toggle {
+    height: 3;
+    margin-bottom: 1;
+    content-align: center middle;
+}
+
+.button-in {
+    background: $success;
+    color: white;
+}
+
+.button-out {
+    background: $error;
+    color: white;
+}
+
+/* Floating Autocomplete Suggestions */
+#suggestion-list {
+    layer: popup;
+    offset: 2 18;
+    width: 30;
+    height: auto;
+    max-height: 8;
+    background: $boost;
+    border: solid $primary;
+    margin: 0;
+    padding: 0;
+    scrollbar-size: 0 0;
+    display: none;
+}
+
+#suggestion-list .option-list--option {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+#suggestion-list .option-list--option:hover {
+    background: $primary-darken-3;
+    color: white;
+}
+
+#suggestion-list .option-list--option.-selected {
+    background: $primary;
+    color: white;
+    text-style: bold;
+}
