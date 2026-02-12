@@ -17,44 +17,50 @@ class AccountingEngine:
         manual_tip_visa: float = 0.0
     ) -> Tuple[float, float, float, float]:
         """
-        حساب تأثيرات الطلب على المحافظ
+        حساب تأثيرات الطلب على المحافظ - النظام الجديد
+        
+        NEW FINANCIAL MODEL:
+        - Personal Wallet: NEVER affected by orders (always 0)
+        - Company Wallet: Only money owed to/from company (NO delivery fees)
+        - Profit: Delivery fee + tips (tracked separately, no wallet impact)
         
         Returns:
             (personal_effect, company_effect, tip_cash, tip_visa)
         """
+        # ✅ Orders NEVER affect personal wallet
+        personal_effect = 0.0
+        
+        company_effect = 0.0
         tip_cash = 0.0
         tip_visa = 0.0
-        personal_effect = 0.0
-        company_effect = 0.0
         
         if mode == "CASH":
             if order_type == "Restaurant":
                 # Restaurant + CASH
-                personal_effect = -paid + actual
+                # Company gets: expected - paid (settlement logic only)
+                # No delivery fee added to company wallet
                 company_effect = expected - paid
                 tip_cash = max(actual - expected, 0)
             else:
                 # Mart / Friendly Restaurant + CASH
-                personal_effect = actual
+                # Company gets: full expected amount collected from customer
+                # No delivery fee added to company wallet
                 company_effect = expected
                 tip_cash = max(actual - expected, 0)
                 
         elif mode == "VISA":
-            # VISA MODE: يتم إدخال البقشيش مباشرة أو حسابه
-            # إذا دخلت أرقام للـ manual_tips نستخدمها
-            if manual_tip_cash > 0 or manual_tip_visa > 0:
-                tip_cash = manual_tip_cash
-                tip_visa = manual_tip_visa
-            else:
-                # توافق خلفي مع الطريقة القديمة إذا لم تتوفر المدخلات الجديدة
-                tip_visa = actual
-                tip_cash = max(paid - expected, 0)
-                
-            personal_effect = tip_cash
+            # VISA MODE: Only tip_visa affects company wallet (subtracted)
+            # Delivery fee and tip_cash go to profit tracking only
+            tip_cash = manual_tip_cash
+            tip_visa = manual_tip_visa
+            
+            # ✅ Only tip_visa is subtracted from company wallet
+            # (company owes this to driver)
             company_effect = -tip_visa
         
-        # إضافة رسوم التوصيل
-        company_effect += delivery_fee
+        # ✅ CRITICAL: Delivery fee is NOT added to company_effect
+        # It's only used for profit calculation (done elsewhere)
+        # This is the key change from old system
         
         return personal_effect, company_effect, tip_cash, tip_visa
     

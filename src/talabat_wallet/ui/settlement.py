@@ -1,11 +1,11 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Button, Static, Input
+from textual.widgets import Button, Static
 from textual import events
 from datetime import datetime
 from ..database import Database
-from .components import CustomButton
+from .components import CustomButton, ArabicInput
 
 class SettlementScreen(ModalScreen):
     """شاشة التسوية كـ Popup"""
@@ -33,11 +33,11 @@ class SettlementScreen(ModalScreen):
                 # مبلغ التسوية
                 with Vertical(classes="input-group"):
                     yield Static("Settlement Amount:")
-                    self.amount_input = Input(
+                    self.amount_input = ArabicInput(
                         placeholder="0.0",
                         id="settlement-amount",
-                        type="number",
-                        validate_on=["submitted", "blur"]
+                        required=True,
+                        min_value=0
                     )
                     yield self.amount_input
                 
@@ -84,7 +84,7 @@ class SettlementScreen(ModalScreen):
         except ValueError:
             self.query_one("#effect-preview").update("Invalid number")
     
-    async def on_input_changed(self, event: Input.Changed) -> None:
+    async def on_input_changed(self, event: ArabicInput.Changed) -> None:
         """عند تغيير قيمة الإدخال"""
         if event.input.id == "settlement-amount":
             self.update_preview()
@@ -106,6 +106,11 @@ class SettlementScreen(ModalScreen):
     
     async def process_settlement(self) -> None:
         """معالجة التسوية"""
+        # التحقق من صحة الحقل قبل المعالجة
+        if not self.amount_input.validate_input():
+            self.notify("Please enter a valid positive amount", severity="error")
+            return
+            
         try:
             amount = float(self.amount_input.value or 0)
             if amount <= 0:

@@ -36,6 +36,36 @@ class Database:
             if 'shift_id' not in columns:
                 cursor.execute("ALTER TABLE expenses ADD COLUMN shift_id INTEGER")
             
+            # --- SHIFTS TABLE MIGRATION ---
+            cursor.execute("PRAGMA table_info(shifts)")
+            shift_columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'shift_date' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN shift_date DATE")
+            if 'scheduled_start' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN scheduled_start TEXT")
+            if 'scheduled_end' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN scheduled_end TEXT")
+            if 'actual_start' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN actual_start TEXT")
+            if 'actual_end' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN actual_end TEXT")
+            if 'status' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN status TEXT DEFAULT 'FINISHED'") 
+                # Default to FINISHED for old shifts to avoid issues
+            if 'is_late' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN is_late BOOLEAN DEFAULT 0")
+            if 'break_active' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN break_active BOOLEAN DEFAULT 0")
+            if 'break_start' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN break_start TEXT")
+            if 'break_end' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN break_end TEXT")
+            if 'total_break_time' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN total_break_time INTEGER DEFAULT 0")
+            if 'break_planned_duration' not in shift_columns:
+                cursor.execute("ALTER TABLE shifts ADD COLUMN break_planned_duration INTEGER")
+            
             conn.commit()
 
     def add_expense(self, description: str, amount: float, txn_type: str = 'OUT') -> bool:
@@ -54,6 +84,32 @@ class Database:
                     "INSERT INTO expenses (datetime, description, amount, type, shift_id) VALUES (?, ?, ?, ?, ?)",
                     (now, description, amount, txn_type, shift_id)
                 )
+                conn.commit()
+                return True
+        except Exception:
+            return False
+
+    def delete_expense(self, expense_id: int) -> bool:
+        """حذف مصروف"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+                conn.commit()
+                return True
+        except Exception:
+            return False
+
+    def update_expense(self, expense_id: int, description: str, amount: float, txn_type: str) -> bool:
+        """تحديث بيانات المصروف"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE expenses 
+                    SET description = ?, amount = ?, type = ?
+                    WHERE id = ?
+                """, (description, amount, txn_type, expense_id))
                 conn.commit()
                 return True
         except Exception:
@@ -170,17 +226,33 @@ class Database:
                 )
             """)
             
-            # جدول الورديات (Shifts)
+            # جدول الورديات (Shifts) - UPDATED STRUCTURE
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS shifts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT,
-                    is_active INTEGER DEFAULT 1,
+                    shift_date DATE NOT NULL,
+                    scheduled_start TEXT,
+                    scheduled_end TEXT,
+                    actual_start TEXT,
+                    actual_end TEXT,
+                    status TEXT DEFAULT 'SCHEDULED', -- SCHEDULED, ACTIVE, FINISHED, ABSENT
+                    is_late BOOLEAN DEFAULT 0,
+                    break_active BOOLEAN DEFAULT 0,
+                    break_start TEXT,
+                    break_end TEXT,
+                    break_planned_duration INTEGER,
+                    total_break_time INTEGER DEFAULT 0,
+                    
+                    -- Legacy/Stats fields
                     total_orders INTEGER DEFAULT 0,
                     total_income REAL DEFAULT 0.0,
                     total_expenses REAL DEFAULT 0.0,
-                    net_profit REAL DEFAULT 0.0
+                    net_profit REAL DEFAULT 0.0,
+                    
+                    -- Deprecated but kept if needed for migration
+                    start_time TEXT,
+                    end_time TEXT,
+                    is_active INTEGER
                 )
             """)
             
@@ -294,9 +366,40 @@ class Database:
             
             order_id = cursor.lastrowid
             
-            # تحديث المحافظ
+            # ✅ NEW FEATURE: Create separate tip entry if tips exist
+            tip_cash = order_data.get('tip_cash', 0.0)
+            tip_visa = order_data.get('tip_visa', 0.0)
+            
+            if tip_cash > 0 or tip_visa > 0:
+                # Create a TIP entry in orders table
+                cursor.execute("""
+                    INSERT INTO orders (
+                        datetime, mode, order_type, paid, expected, actual,
+                        tip_cash, tip_visa, delivery_fee,
+                        personal_wallet_effect, company_wallet_effect, shift_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    order_data['datetime'],
+                    'TIP',  # Special mode for tip entries
+                    'Tip',  # Order type is "Tip"
+                    0.0,  # No paid amount for tips
+                    0.0,  # No expected amount
+                    tip_cash + tip_visa,  # Total tip in actual field
+                    tip_cash,
+                    tip_visa,
+                    0.0,  # No delivery fee for tip entries
+                    0.0,  # Tips don't affect personal wallet (already counted in order)
+                    0.0,  # Tips don't affect company wallet (already counted in order)
+                    shift_id
+                ))
+            
+            # ✅ NEW LOGIC: Orders only affect company_wallet, NOT personal_wallet
             settings = self.get_settings()
-            new_personal = settings['personal_wallet'] + order_data['personal_wallet_effect']
+            
+            # Personal wallet stays unchanged - orders don't affect it
+            new_personal = settings['personal_wallet']
+            
+            # Only company wallet changes from orders
             new_company = settings['company_wallet'] + order_data['company_wallet_effect']
             
             cursor.execute("""
@@ -328,9 +431,13 @@ class Database:
             # حذف الطلب
             cursor.execute("DELETE FROM orders WHERE id = ?", (order_id,))
             
-            # تحديث المحافظ (عكس التأثير)
+            # ✅ NEW LOGIC: Only reverse company_wallet effect
             settings = self.get_settings()
-            new_personal = settings['personal_wallet'] - personal_effect
+            
+            # Personal wallet stays unchanged - orders don't affect it
+            new_personal = settings['personal_wallet']
+            
+            # Only reverse company wallet effect
             new_company = settings['company_wallet'] - company_effect
             
             cursor.execute("""
@@ -527,12 +634,11 @@ class Database:
                 if not old_order:
                     return False
                 
-                # 2. عكس تأثير الطلب القديم على المحافظ
+                # 2. ✅ NEW LOGIC: Only reverse company_wallet effect (not personal)
                 cursor.execute("""
                     UPDATE settings SET 
-                        personal_wallet = personal_wallet - ?,
                         company_wallet = company_wallet - ?
-                """, (old_order['personal_wallet_effect'], old_order['company_wallet_effect']))
+                """, (old_order['company_wallet_effect'],))
                 
                 # 3. تحديث بيانات الطلب (مع الحفاظ على التاريخ الأصلي)
                 cursor.execute("""
@@ -549,18 +655,18 @@ class Database:
                     order_id
                 ))
                 
-                # 4. تطبيق تأثير البيانات الجديدة على المحافظ
+                # 4. ✅ NEW LOGIC: Only apply new company_wallet effect (not personal)
                 cursor.execute("""
                     UPDATE settings SET 
-                        personal_wallet = personal_wallet + ?,
                         company_wallet = company_wallet + ?
-                """, (new_data['personal_wallet_effect'], new_data['company_wallet_effect']))
+                """, (new_data['company_wallet_effect'],))
                 
                 conn.commit()
                 return True
         except Exception as e:
             print(f"Error updating order: {e}")
             return False
+
 
     def get_average_profit_per_day_with_orders(self) -> float:
         """حساب متوسط الربح اليومي للأيام التي تحتوي على طلبات فقط"""
@@ -588,6 +694,8 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM orders")
                 cursor.execute("DELETE FROM expenses")
+                cursor.execute("DELETE FROM shifts")
+                cursor.execute("DELETE FROM sqlite_sequence")
                 cursor.execute("UPDATE settings SET personal_wallet = 0.0, company_wallet = 0.0")
                 conn.commit()
             return True
@@ -692,137 +800,430 @@ class Database:
         
         return "\n".join(lines)
     
-    # Shift Management Methods
+    # Shift Management Methods - UPDATED FOR CALENDAR SYSTEM
     
-    def start_shift(self) -> Optional[int]:
-        """بدء وردية جديدة"""
+    def get_shifts_by_date(self, date_str: str) -> List[Dict[str, Any]]:
+        """الحصول على الورديات لتاريخ معين"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM shifts 
+                WHERE shift_date = ? 
+                ORDER BY scheduled_start
+            """, (date_str,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+            
+    def get_active_shift(self) -> Optional[Dict[str, Any]]:
+        """الحصول على الوردية النشطة حالياً"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM shifts WHERE status = 'ACTIVE'")
+            row = cursor.fetchone()
+            return dict(row) if row else None
+            
+    def get_next_shift(self) -> Optional[Dict[str, Any]]:
+        """الحصول على الوردية القادمة (الأقرب)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                # البحث عن الورديات المجدولة التي لم تبدأ بعد
+                cursor.execute("""
+                    SELECT * FROM shifts 
+                    WHERE status = 'SCHEDULED' 
+                    AND (shift_date > DATE('now') OR (shift_date = DATE('now') AND scheduled_start > TIME('now')))
+                    ORDER BY shift_date ASC, scheduled_start ASC
+                    LIMIT 1
+                """)
+                row = cursor.fetchone()
+                return dict(row) if row else None
+        except Exception:
+            return None
+
+    def add_scheduled_shift(self, shift_date: str, start_time: str, end_time: str) -> bool:
+        """إضافة وردية مجدولة جديدة"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                # التحقق من عدم وجود وردية نشطة بالفعل
-                cursor.execute("SELECT id FROM shifts WHERE is_active = 1")
-                if cursor.fetchone():
-                    return None  # يوجد وردية نشطة بالفعل
-                
-                # إنشاء وردية جديدة
+                # Handling the schema where start_time might be NOT NULL
+                # We'll use start_time as a copy of scheduled_start for legacy compatibility
                 cursor.execute("""
-                    INSERT INTO shifts (start_time, is_active)
-                    VALUES (?, 1)
-                """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+                    INSERT INTO shifts (
+                        shift_date, scheduled_start, scheduled_end, 
+                        start_time, status, is_late, break_active, total_break_time
+                    ) VALUES (?, ?, ?, ?, 'SCHEDULED', 0, 0, 0)
+                """, (shift_date, start_time, end_time, start_time))
                 
                 conn.commit()
-                return cursor.lastrowid
-        except Exception:
-            return None
-    
-    def end_shift(self) -> Optional[Dict[str, Any]]:
-        """إنهاء الوردية النشطة وحساب الإحصائيات"""
+                return True
+        except Exception as e:
+            print(f"Error adding shift: {e}")
+            return False
+
+    def delete_shift(self, shift_id: int) -> bool:
+        """حذف وردية (فقط إذا لم تبدأ)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT status FROM shifts WHERE id = ?", (shift_id,))
+                row = cursor.fetchone() # Fixed bug: row was not fetched
+                if not row:
+                    return False
+                
+                cursor.execute("DELETE FROM shifts WHERE id = ?", (shift_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting shift: {e}")
+            return False
+
+    def start_shift(self, shift_id: int) -> Tuple[bool, str]:
+        """بدء الوردية يدوياً - مع قيود زمنية"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 
-                # الحصول على الوردية النشطة
-                cursor.execute("SELECT * FROM shifts WHERE is_active = 1")
+                # جلب بيانات الوردية
+                cursor.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,))
                 shift = cursor.fetchone()
                 if not shift:
-                    return None
+                    return False, "Shift not found"
                 
-                shift_id = shift['id']
+                if shift['status'] != 'SCHEDULED':
+                    return False, f"Cannot start shift with status: {shift['status']}"
+
+                # التأكد من عدم وجود وردية نشطة أخرى
+                cursor.execute("SELECT id FROM shifts WHERE status = 'ACTIVE'")
+                if cursor.fetchone():
+                    return False, "Another shift is already active!"
                 
-                # حساب إحصائيات الطلبات في هذه الوردية
+                # قيود الوقت: لا يمكن البدء قبل الموعد بأكثر من 30 دقيقة
+                now = datetime.now()
+                try:
+                    start_time_str = f"{shift['shift_date']} {shift['scheduled_start']}"
+                    try:
+                        scheduled_start = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
+                    except:
+                        scheduled_start = datetime.fromisoformat(start_time_str)
+                        
+                    diff = (scheduled_start - now).total_seconds() / 60
+                    if diff > 30:
+                        return False, f"Too early! Start available in {int(diff-30)} mins"
+                except Exception as e:
+                    print(f"Error checking start time: {e}")
+                
+                now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+                
+                cursor.execute("""
+                    UPDATE shifts 
+                    SET status = 'ACTIVE', actual_start = ?, is_active = 1, is_late = 0
+                    WHERE id = ?
+                """, (now_str, shift_id))
+                
+                conn.commit()
+                return cursor.rowcount > 0, "Success"
+        except Exception as e:
+            print(f"Error starting shift: {e}")
+            return False, str(e)
+
+    def end_active_shift(self, shift_id: int = None) -> Optional[Dict[str, Any]]:
+        """إنهاء الوردية النشطة"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                if shift_id is None:
+                    cursor.execute("SELECT id FROM shifts WHERE status = 'ACTIVE'")
+                    row = cursor.fetchone()
+                    if not row:
+                        return None
+                    shift_id = row['id']
+                
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # حساب الإحصائيات
                 cursor.execute("""
                     SELECT COUNT(*) as count,
                            SUM(delivery_fee + tip_cash + tip_visa) as income
                     FROM orders
-                    WHERE shift_id = ?
+                    WHERE shift_id = ? AND mode != 'TIP'
                 """, (shift_id,))
-                orders_stats = cursor.fetchone()
+                row = cursor.fetchone()
+                total_orders = row['count'] if row else 0
+                total_income = row['income'] if row and row['income'] else 0.0
                 
-                # حساب المصاريف في هذه الوردية
                 cursor.execute("""
-                    SELECT SUM(amount) as total_expenses
-                    FROM expenses
-                    WHERE shift_id = ? AND type = 'OUT'
+                    SELECT SUM(amount) FROM expenses WHERE shift_id = ? AND type = 'OUT'
                 """, (shift_id,))
-                expenses_row = cursor.fetchone()
+                exp_row = cursor.fetchone()
+                total_expenses = exp_row[0] if exp_row and exp_row[0] else 0.0
                 
-                total_orders = orders_stats['count'] or 0
-                total_income = orders_stats['income'] or 0.0
-                total_expenses = expenses_row['total_expenses'] or 0.0
-                net_profit = total_income - total_expenses
+                if cursor.execute("""
+                    UPDATE shifts 
+                    SET status = 'FINISHED', actual_end = ?, is_active = 0,
+                        total_orders = ?, total_income = ?, total_expenses = ?, net_profit = ?
+                    WHERE id = ? AND status = 'ACTIVE'
+                """, (now_str, total_orders, total_income, total_expenses, total_income - total_expenses, shift_id)).rowcount > 0:
+                    conn.commit()
+                    
+                    # Return summary
+                    cursor.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,))
+                    return dict(cursor.fetchone())
                 
-                # تحديث الوردية
-                cursor.execute("""
-                    UPDATE shifts
-                    SET end_time = ?,
-                        is_active = 0,
-                        total_orders = ?,
-                        total_income = ?,
-                        total_expenses = ?,
-                        net_profit = ?
-                    WHERE id = ?
-                """, (
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    total_orders,
-                    total_income,
-                    total_expenses,
-                    net_profit,
-                    shift_id
-                ))
+                return None
+        except Exception as e:
+            print(f"Error ending shift: {e}")
+            return None
+
+    def toggle_break(self, shift_id: int, duration_mins: int = None) -> str:
+        """تبديل حالة الاستراحة (بدء/إنهاء) - ترجع الحالة الجديدة"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
                 
+                cursor.execute("SELECT break_active, break_start, total_break_time FROM shifts WHERE id = ?", (shift_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return "ERROR"
+                
+                is_active = row['break_active']
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                if is_active:
+                    # إنهاء الاستراحة
+                    start_time = datetime.strptime(row['break_start'], "%Y-%m-%d %H:%M:%S")
+                    end_time = datetime.strptime(now_str, "%Y-%m-%d %H:%M:%S")
+                    duration_secs = int((end_time - start_time).total_seconds())
+                    new_total = (row['total_break_time'] or 0) + duration_secs
+                    
+                    cursor.execute("""
+                        UPDATE shifts 
+                        SET break_active = 0, break_end = ?, total_break_time = ?, break_planned_duration = NULL
+                        WHERE id = ?
+                    """, (now_str, new_total, shift_id))
+                    new_status = "INACTIVE"
+                else:
+                    # بدء استراحة
+                    cursor.execute("""
+                        UPDATE shifts 
+                        SET break_active = 1, break_start = ?, break_planned_duration = ?
+                        WHERE id = ?
+                    """, (now_str, duration_mins, shift_id))
+                    new_status = "ACTIVE"
+                    
                 conn.commit()
+                return new_status
+        except Exception as e:
+            print(f"Error toggle_break: {e}")
+            return "ERROR"
+
+    def get_dashboard_status(self) -> Dict[str, Any]:
+        """تجميع كافة البيانات اللازمة لعرض الحالة في الهيدر والتايمرات"""
+        try:
+            active = self.get_active_shift()
+            
+            if active:
+                if active['break_active']:
+                    # حساب وقت البريك
+                    start = datetime.strptime(active['break_start'], "%Y-%m-%d %H:%M:%S")
+                    now = datetime.now()
+                    elapsed = int((now - start).total_seconds())
+                    
+                    planned = active.get('break_planned_duration')
+                    remaining = None
+                    if planned:
+                        remaining = max(0, (planned * 60) - elapsed)
+                    
+                    return {
+                        'state': 'BREAK',
+                        'shift_id': active['id'],
+                        'elapsed_seconds': elapsed,
+                        'remaining_seconds': remaining,
+                        'planned_mins': planned
+                    }
+                else:
+                    # حساب وقت الوردية
+                    now = datetime.now()
+                    try:
+                        end_time_str = f"{active['shift_date']} {active['scheduled_end']}"
+                        # Try parsing with date first, then fallback
+                        try:
+                            # If scheduled_end is HH:MM
+                            end_dt = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M")
+                        except:
+                            # If it's already full iso
+                            end_dt = datetime.fromisoformat(end_time_str)
+                            
+                        remaining = int((end_dt - now).total_seconds())
+                    except:
+                        remaining = 0
+                        
+                    return {
+                        'state': 'SHIFT_ACTIVE',
+                        'shift_id': active['id'],
+                        'remaining_seconds': max(0, remaining),
+                        'scheduled_end': active['scheduled_end']
+                    }
+            
+            # إذا لم توجد وردية نشطة، ابحث عن القادمة (فقط لليوم)
+            next_s = self.get_next_shift()
+            if next_s:
+                now = datetime.now()
+                today = now.strftime("%Y-%m-%d")
                 
-                # إرجاع ملخص الوردية
+                # التحقق إذا كانت الوردية القادمة لليوم تحديداً
+                if next_s['shift_date'] == today:
+                    try:
+                        start_time_str = f"{next_s['shift_date']} {next_s['scheduled_start']}"
+                        try:
+                            start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
+                        except:
+                            start_dt = datetime.fromisoformat(start_time_str)
+                            
+                        wait_seconds = int((start_dt - now).total_seconds())
+                        
+                        return {
+                            'state': 'NEXT_UPCOMING',
+                            'shift_id': next_s['id'],
+                            'wait_seconds': max(0, wait_seconds),
+                            'scheduled_start': next_s['scheduled_start'],
+                            'shift_date': next_s['shift_date']
+                        }
+                    except Exception as e:
+                        print(f"Error calculating wait time: {e}")
+                
+            return {'state': 'NO_SHIFT'}
+        except Exception as e:
+            print(f"Error get_dashboard_status: {e}")
+            return {'state': 'NO_SHIFT'}
+
+    def is_order_allowed(self) -> Tuple[bool, str]:
+        """التحقق من إمكانية إضافة طلبات (وردية نشطة + ليست في استراحة)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, break_active FROM shifts WHERE status = 'ACTIVE'")
+                row = cursor.fetchone()
+                
+                if not row:
+                    return False, "No active shift running!"
+                
+                if row[1]: # break_active is 1
+                    return False, "You are currently on break!"
+                
+                return True, ""
+        except Exception:
+            return False, "Database error"
+
+    def check_auto_updates(self) -> Optional[Dict[str, Any]]:
+        """التحقق من التحديثات التلقائية (انتهاء الوردية، الغياب)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                now = datetime.now()
+                now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+                
+                ended_shift_summary = None
+                
+                # 1. إنهاء الورديات النشطة التي تجاوزت موعد الانتهاء
+                cursor.execute("SELECT * FROM shifts WHERE status = 'ACTIVE'")
+                active_shifts = [dict(r) for r in cursor.fetchall()]
+                
+                for shift in active_shifts:
+                    try:
+                        end_time_str = f"{shift['shift_date']} {shift['scheduled_end']}"
+                        try:
+                            # If scheduled_end is HH:MM
+                            scheduled_end = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M")
+                        except:
+                            scheduled_end = datetime.fromisoformat(end_time_str)
+                            
+                        if now >= scheduled_end:
+                            # إنهاء هذه الوردية تلقائياً
+                            ended_shift_summary = self.end_active_shift(shift['id'])
+                    except Exception as ex:
+                        print(f"Error auto-ending shift {shift['id']}: {ex}")
+
+                # 2. تحويل الورديات المجدولة إلى "غائب" إذا انتهى وقتها ولم تبدأ
+                cursor.execute("""
+                    UPDATE shifts 
+                    SET status = 'ABSENT'
+                    WHERE status = 'SCHEDULED' 
+                    AND (shift_date < DATE('now') OR (shift_date = DATE('now') AND scheduled_end < TIME('now')))
+                """)
+                conn.commit()
+                return ended_shift_summary
+        except Exception as e:
+            print(f"Error in auto updates: {e}")
+            return None
+
+    def get_shift_stats(self, shift_id: int) -> Dict[str, Any]:
+        """الحساب اللحظي لإحصائيات الوردية (عدد الطلبات، الدخل، الربح)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                # حساب الطلبات والدخل
+                cursor.execute("""
+                    SELECT COUNT(*) as count,
+                           SUM(delivery_fee + tip_cash + tip_visa) as income
+                    FROM orders
+                    WHERE shift_id = ? AND mode != 'TIP'
+                """, (shift_id,))
+                row = cursor.fetchone()
+                total_orders = row['count'] if row else 0
+                total_income = row['income'] if row and row['income'] else 0.0
+                
+                # حساب المصاريف
+                cursor.execute("""
+                    SELECT SUM(amount) FROM expenses WHERE shift_id = ? AND type = 'OUT'
+                """, (shift_id,))
+                exp_row = cursor.fetchone()
+                total_expenses = exp_row[0] if exp_row and exp_row[0] else 0.0
+                
                 return {
-                    'id': shift_id,
-                    'start_time': shift['start_time'],
-                    'end_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'total_orders': total_orders,
                     'total_income': total_income,
                     'total_expenses': total_expenses,
-                    'net_profit': net_profit
+                    'net_profit': total_income - total_expenses
                 }
-        except Exception:
-            return None
-    
-    def get_active_shift(self) -> Optional[Dict[str, Any]]:
-        """الحصول على الوردية النشطة إن وجدت"""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM shifts WHERE is_active = 1")
-                row = cursor.fetchone()
-                return dict(row) if row else None
-        except Exception:
-            return None
-    
-    def get_shift_summary(self, shift_id: int) -> Optional[Dict[str, Any]]:
-        """الحصول على ملخص تفصيلي لوردية معينة"""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,))
-                row = cursor.fetchone()
-                return dict(row) if row else None
-        except Exception:
-            return None
-    
-    def get_all_shifts(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """الحصول على سجل الورديات"""
+        except Exception as e:
+            print(f"Error get_shift_stats: {e}")
+            return {'total_orders': 0, 'total_income': 0, 'total_expenses': 0, 'net_profit': 0}
+
+    def get_all_shifts(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """الحصول على سجل الورديات (المنتهية والغياب فقط)"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT * FROM shifts
-                    ORDER BY start_time DESC
+                    SELECT * FROM shifts 
+                    WHERE status IN ('FINISHED', 'ABSENT', 'SCHEDULED', 'ACTIVE')
+                    ORDER BY shift_date DESC, scheduled_start DESC
                     LIMIT ?
                 """, (limit,))
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
         except Exception:
             return []
+            
+    def get_shift_summary(self, shift_id: int) -> Optional[Dict[str, Any]]:
+        """الحصول على ملخص الوردية"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    # End of Database class

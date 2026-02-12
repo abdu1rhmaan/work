@@ -16,7 +16,7 @@ Screen {
     margin-bottom: 1;
 }
 
-#mode-display, #batch-display {
+#mode-display, #batch-display, #shift-status-header {
     width: 1fr;
     height: 100%;
     content-align: center middle;
@@ -71,9 +71,17 @@ Screen {
 
 CustomButton {
     width: 100%;
+    height: 1;
+    min-height: 1;
     background: $boost;
     color: $text;
     border: none;
+    padding: 0;
+}
+
+Button {
+    height: 1;
+    min-height: 1;
 }
 
 CustomButton:focus {
@@ -149,6 +157,8 @@ ModalScreen {
     padding: 1 2;
 }
 
+
+
 .shift-stat {
     text-align: center;
     margin-bottom: 1;
@@ -183,10 +193,42 @@ ModalScreen {
     max-height: 90%;
     width: 95%;
     max-width: 100;
-    layout: grid;
-    grid-size: 1 5;
-    grid-rows: 3 2 auto 2 3;
-    padding: 0;
+    layout: vertical;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+#shifts-history-dialog #dialog-buttons CustomButton {
+    height: 1;
+    min-height: 1;
+    width: 100%;
+    margin: 0;
+    border: none;
+    text-align: center;
+}
+
+#analysis-view {
+    height: 1fr;
+    min-height: 20;
+    margin-top: 1;
+    margin-bottom: 1;
+    background: $surface;
+    color: $text;
+    border: round $primary;
+    padding: 0 1;
+    width: 100%;
+    content-align: center top;
+}
+
+#shifts-history-dialog #title {
+    margin-bottom: 0;
+    dock: top;
+}
+
+#shifts-history-dialog #dialog-buttons {
+    dock: bottom;
+    padding-top: 1;
+    width: 100%;
 }
 
 #shifts-history-body {
@@ -194,6 +236,7 @@ ModalScreen {
     width: 100%;
     border: none; 
     padding-bottom: 0;
+    margin-top: 1;
 }
 
 #shifts-history-content {
@@ -203,75 +246,33 @@ ModalScreen {
     scrollbar-size-vertical: 1;
 }
 .layout-spacer {
-    height: 2;
-    min-height: 2;
+    height: 1;
+    min-height: 1;
     width: 100%;
     background: transparent;
 }
 
 .layout-spacer-top {
-    height: 2;
-    min-height: 2;
-    width: 100%;
-    background: $primary;
+    display: none;
 }
 
-ShiftHistoryRow {
-    height: auto;
+/* Shift Row Styling - Simplified for Visibility */
+.shift-row {
+    height: 1;
+    min-height: 1;
     width: 100%;
-    background: $panel;
-    margin: 0;
     padding: 0 1;
-    layout: grid;
-    grid-size: 4 1;
-    grid-columns: 3fr 2fr 2fr 3fr; 
-    align-vertical: middle;
-}
-
-/* Better selection style */
-ShiftHistoryRow:focus {
-    background: $primary-darken-1;
-}
-
-ShiftHistoryRow:hover {
-    background: $primary-darken-1;
-}
-
-.shift-info-container {
-    display: none; 
-}
-
-.shift-date {
-    width: 100%;
-    color: $text-muted;
+    background: $boost;
+    color: white !important;
+    text-align: center;
     content-align: left middle;
+    border: none;
+    margin: 0;
 }
 
-.shift-duration {
-    width: 100%;
-    color: $accent;
-    content-align: center middle;
-}
-
-.shift-orders {
-    width: 100%;
-    color: $text;
-    content-align: center middle;
-}
-
-.shift-profit {
-    width: 100%;
-    color: $success;
-    text-style: bold;
-    text-align: right; 
-    content-align: right middle;
-}
-
-.shift-active-label {
-    width: auto;
-    color: $success;
-    text-style: bold;
-    padding: 0 1; 
+.shift-row:hover, .shift-row:focus {
+    background: $primary-darken-1;
+    color: $accent !important;
 }
 
 #dialog-buttons {
@@ -279,6 +280,21 @@ ShiftHistoryRow:hover {
     align: center middle;
     margin-top: 0; 
     padding-bottom: 0;
+}
+
+.close-icon-btn {
+    border: none !important;
+    background: transparent !important;
+    color: $text;
+    min-width: 4 !important;
+    width: auto !important;
+    height: 1 !important;
+    padding: 0;
+    margin: 0;
+}
+
+.close-icon-btn:hover {
+    color: $error;
 }
 
 #button-grid Button {
@@ -298,11 +314,14 @@ ShiftHistoryRow:hover {
     width: 95% !important;
     height: auto !important;
     max-height: 90%;
+    layout: vertical;
 }
 
 #history-dialog-main.analysis-modal #history-content {
     padding: 0 2; /* تأمين مسافة كافية لمنع تداخل الحواف */
     align-horizontal: center;
+    height: auto;
+    max-height: 80%;
 }
 
 #history-dialog-main.analysis-modal #analysis-view {
@@ -472,13 +491,20 @@ Input, Select {
     margin-top: 1;
 }
 
+#settings-buttons-grid CustomButton {
+    height: 1;
+    min-height: 1;
+    border: none;
+    margin: 0;
+}
+
 #dialog-buttons CustomButton, 
 #settings-buttons CustomButton, 
-#settings-buttons-grid CustomButton,
 #prices-buttons CustomButton, 
 #history-buttons CustomButton, 
 #chart-buttons CustomButton {
     width: 1fr;
+    height: 1;
     margin: 0 1;
 }
 
@@ -649,8 +675,9 @@ HistoryRow:focus {
     background: $surface;
     color: $text;
     border: round $primary;
-    padding: 1 4;
-    content-align: left top;
+    padding: 0 1;
+    width: 100%;
+    content-align: center top;
 }
 
 #delivery-fee-display {
@@ -748,65 +775,276 @@ HistoryRow:focus {
     margin-bottom: 1;
 }
 
-.txn-in {
-    background: $success-darken-3;
+/* Calendar Styles */
+/* Calendar Styles */
+#calendar-container {
+    padding: 0;
+    margin: 0;
+    width: 90%;
+    max-width: 80;
+    height: auto;
+    border: thick $primary;
 }
 
-.txn-out {
-    background: $error-darken-3;
+#calendar-nav {
+    height: 5;
+    width: 100%;
+    background: $primary-darken-3;
+    content-align: center middle;
+    padding: 0 2;
+    border-bottom: solid $primary;
 }
 
-.txn-in .expense-amount {
-    color: $success;
-}
-
-.txn-out .expense-amount {
-    color: $error-lighten-1;
-}
-
-#txn-type-toggle {
-    height: 3;
-    margin-bottom: 1;
+#month-label {
+    width: 1fr;
+    text-align: center;
+    color: $accent;
+    text-style: bold;
+    height: 1;
     content-align: center middle;
 }
 
-.button-in {
-    background: $success;
+.nav-btn {
+    width: 6;
+    height: 3;
+    background: $primary-lighten-1;
     color: white;
+    border: tall white;
+    text-style: bold;
+    margin: 0 1;
 }
 
-.button-out {
-    background: $error;
-    color: white;
+.nav-btn:hover {
+    background: $accent-darken-1;
+    border: tall $accent;
 }
 
-/* Floating Autocomplete Suggestions */
-#suggestion-list {
-    layer: popup;
-    offset: 2 18;
-    width: 30;
+#days-header {
+    layout: grid;
+    grid-size: 7;
+    grid-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    height: 3;
+    padding: 0 1;
+    background: $primary-darken-2;
+    border-bottom: heavy $primary;
+}
+
+.day-name {
+    width: 100%;
+    text-align: center;
+    color: $text-muted;
+    text-style: bold;
+    content-align: center middle;
+}
+
+#calendar-grid {
+    layout: grid;
+    grid-size: 7;
+    grid-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-gutter: 0;
+    padding: 0 1;
+    background: $surface;
     height: auto;
-    max-height: 8;
-    background: $boost;
-    border: solid $primary;
+}
+
+.day-cell {
+    width: 100%;
+    height: 3;
+    background: $surface;
+    color: $text;
+    border: solid $primary 10%;
     margin: 0;
     padding: 0;
-    scrollbar-size: 0 0;
+}
+
+.day-cell:hover {
+    background: $accent 30%;
+    text-style: bold;
+}
+
+.day-cell.today {
+    background: $accent 15% !important;
+    border: tall $accent !important;
+}
+
+.day-cell.today-btn {
+    color: $accent !important;
+    text-style: bold underline !important;
+}
+
+.day-cell.has-shift {
+    border-bottom: heavy $success;
+    background: $success 10%;
+}
+
+.day-cell.shifts-completed {
+    border-bottom: heavy cyan;
+    background: cyan 8%;
+}
+
+.day-cell.has-shift Button {
+    color: $success;
+    text-style: bold;
+}
+
+.day-cell.empty-day {
+    background: transparent;
+    border: none;
+}
+
+/* Add Order Fixes */
+#add-order-dialog {
+    width: 90%;
+    max-width: 80;
+    height: auto;
+    max-height: 90%;
+}
+
+#title {
     display: none;
 }
 
-#suggestion-list .option-list--option {
+/* Modal Dialogs General */
+.modal-dialog {
+    border: thick $primary;
+    background: $surface;
+    border-top: heavy $accent;
+}
+
+.dialog-header {
+    background: $primary-darken-3;
     padding: 0 1;
+    height: 3;
+    border-bottom: solid $primary;
+}
+
+.dialog-body {
+    padding: 1 2;
+}
+
+.dialog-title-text {
+    width: 1fr;
+    color: $accent;
+    text-style: bold;
+    height: 1;
+    content-align: left middle;
+}
+
+.close-icon-btn {
+    width: 4;
+    min-width: 4;
+    height: 1;
+    color: $text-muted;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+
+.close-icon-btn:hover {
+    color: $error;
+    text-style: bold;
+}
+
+.shift-item-btn {
+    border-left: solid $primary;
+    margin-bottom: 1;
+}
+
+.shift-item-btn:hover {
+    border-left: solid $accent;
+    background: $accent 10%;
+}
+
+.shift-item-btn.status-active {
+    border-left: solid $success;
+}
+
+.shift-info-summary {
+    background: $panel;
+    padding: 1 2;
+    margin-bottom: 1;
+    border-left: heavy $accent;
+}
+
+.delete-btn {
+    margin-top: 1;
+}
+
+#shift-status-header {
+    text-align: center;
+    text-style: bold;
+    padding: 0 2;
+    background: transparent;
+    width: 60%;
+    content-align: center middle;
+    border: none;
+    color: $text;
+}
+
+#shift-status-header:hover {
+    background: $primary-darken-2;
+    text-style: bold underline;
+    color: $accent;
+}
+
+.shift-history-row {
+    height: 1;
+    layout: horizontal;
+    width: 100%;
+    border-bottom: solid $primary 10%;
+    background: $surface;
+}
+
+.shift-history-row:hover {
+    background: $primary-darken-2;
+}
+
+.shift-history-row Label {
+    height: 1;
+    content-align: center middle;
+}
+
+/* Fixed widths to ensure perfect alignment */
+.shift-date {
+    width: 35% !important;
+    text-align: left !important;
     color: $text-muted;
 }
 
-#suggestion-list .option-list--option:hover {
-    background: $primary-darken-3;
-    color: white;
+.shift-duration {
+    width: 25% !important;
+    text-align: center;
+    color: $accent;
 }
 
-#suggestion-list .option-list--option.-selected {
-    background: $primary;
-    color: white;
-    text-style: bold;
+.shift-orders {
+    width: 20% !important;
+    text-align: center;
+}
+
+/* Pure consolidated shift styles above */
+
+/* Cleaned up old experimental classes */
+
+.break-row {
+    height: auto;
+    min-height: 2;
+    align: center middle;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.break-options {
+    padding: 1 0;
+}
+
+/* Final Cleanup */
+
+.empty-message-text {
+    width: 100%;
+    text-align: center;
+    color: $text-muted;
+    padding: 2;
 }

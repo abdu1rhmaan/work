@@ -45,11 +45,11 @@ class SettingsScreen(ModalScreen):
                 
                 # أزرار التحكم (Grid 2x2)
                 with Grid(id="settings-buttons-grid"):
-                    yield CustomButton("Save", id="save")
-                    yield CustomButton("Edit Prices", id="edit-prices")
-                    yield CustomButton("Export Report", id="export-report")
-                    yield CustomButton("Database", id="database-mgmt")
-                    yield CustomButton("Close", id="back")
+                    yield CustomButton("Save", id="save", custom_width=16)
+                    yield CustomButton("Edit Prices", id="edit-prices", custom_width=16)
+                    yield CustomButton("Export Report", id="export-report", custom_width=16)
+                    yield CustomButton("Database", id="database-mgmt", custom_width=16)
+                    yield CustomButton("Close", id="back", custom_width=16)
     
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""

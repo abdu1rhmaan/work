@@ -51,6 +51,43 @@ class OrderDetailsScreen(ModalScreen):
             self.dismiss()
             await self.app.push_screen(AddOrderScreen(self.db, self.refresh_callback, order_to_edit=self.order))
 
+class TipDetailsScreen(ModalScreen):
+    """نافذة منبثقة لعرض تفاصيل البقشيش"""
+    
+    def __init__(self, order_data: dict, display_id: int):
+        super().__init__()
+        self.order = order_data
+        self.display_id = display_id
+        
+    def compose(self) -> ComposeResult:
+        with Container(id="tip-details-dialog", classes="modal-dialog small-modal"):
+            with Horizontal(id="details-header"):
+                yield Static(f"Tip Details #{self.display_id}", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
+            
+            with Vertical(id="details-content"):
+                yield Static(f"Date: [b]{self.order['datetime']}[/b]")
+                yield Static("────────────────────────")
+                
+                tip_cash = self.order.get('tip_cash', 0.0)
+                tip_visa = self.order.get('tip_visa', 0.0)
+                total_tip = tip_cash + tip_visa
+                
+                if tip_cash > 0:
+                    yield Static(f"💵 Cash Tip:  [b cyan]{tip_cash:.2f} EGP[/b cyan]")
+                if tip_visa > 0:
+                    yield Static(f"💳 Visa Tip:  [b cyan]{tip_visa:.2f} EGP[/b cyan]")
+                
+                yield Static("────────────────────────")
+                yield Static(f"Total Tip: [b green]{total_tip:.2f} EGP[/b green]")
+            
+            with Horizontal(id="dialog-buttons"):
+                yield CustomButton("Close", id="close-details")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id in ["close-details", "close-x"]:
+            self.dismiss()
+
 class SettlementDetailsScreen(ModalScreen):
     """نافذة منبثقة لعرض تفاصيل عملية التسوية (القبض/التحويل)"""
     
@@ -86,6 +123,9 @@ class SettlementDetailsScreen(ModalScreen):
         if event.button.id in ["close-details", "close-x"]:
             self.dismiss()
 
+from rich.table import Table
+from rich import box
+
 class HistoryScreen(ModalScreen):
     """شاشة التاريخ والرسوم البيانية كـ Popup"""
     
@@ -117,15 +157,14 @@ class HistoryScreen(ModalScreen):
                     yield self.analysis_view
                     
                     with Horizontal(id="dialog-buttons"):
-                        yield CustomButton("Back", id="back-chart")
+                        yield CustomButton("Back", id="back-chart", custom_width=16)
             else:
                 yield Static("ORDER HISTORY", id="title")
                 
                 with Vertical(id="filter-section"):
                     type_options = [
-                        ("All", "All"), ("Restaurant", "Restaurant"), 
-                        ("Mart", "Mart"), ("Grocery", "Grocery"),
-                        ("Settlement", "Settlement")
+                        ("All", "All"), ("Order", "Order"), 
+                        ("Tips", "Tips"), ("Settlement", "Settlement")
                     ]
                     yield OptionSelector(type_options, self.filter_type, id="filter-type")
                     
@@ -169,12 +208,33 @@ class HistoryScreen(ModalScreen):
     def load_data(self) -> None:
         """تحميل البيانات وعرضها"""
         if not self.show_chart_only:
-            # تحميل الطلبات مع دعم الفلاتر
-            orders = self.db.get_all_orders(
-                limit=100, 
-                order_type=self.filter_type, 
-                period=self.filter_period
-            )
+            # ✅ Handle new filter logic for Order and Tips
+            if self.filter_type == "Order":
+                # Order = all non-settlement, non-tip orders (Restaurant/Mart/Grocery/etc)
+                orders = self.db.get_all_orders(
+                    limit=100,
+                    order_type="All",  # Get all types
+                    period=self.filter_period
+                )
+                # Filter out settlement and tip entries
+                orders = [o for o in orders if o.get('mode') not in ['SETTLEMENT', 'TIP']]
+                
+            elif self.filter_type == "Tips":
+                # ✅ NEW: Tips = entries with mode='TIP' (separate tip entries)
+                orders = self.db.get_all_orders(
+                    limit=100,
+                    order_type="All",
+                    period=self.filter_period
+                )
+                # Filter for TIP mode entries only
+                orders = [o for o in orders if o.get('mode') == 'TIP']
+            else:
+                # All or Settlement - use database filter
+                orders = self.db.get_all_orders(
+                    limit=100, 
+                    order_type=self.filter_type, 
+                    period=self.filter_period
+                )
             
             # مسح القائمة الحالية - الطريقة الأكثر أماناً
             self.history_list.clear()
@@ -192,45 +252,54 @@ class HistoryScreen(ModalScreen):
             self.load_analysis_data()
 
     def load_analysis_data(self) -> None:
-        """تحميل وعرض البيانات التحليلية النصية"""
+        """تحميل وعرض البيانات التحليلية كجدول"""
         stats = self.db.get_analysis_stats(self.current_period)
         
-        content = []
+        table = Table(box=box.SIMPLE, expand=True, show_header=True)
+        table.add_column("Category", style="cyan", ratio=2)
+        table.add_column("Amount (EGP)", justify="right", style="bold", ratio=1)
+        
         if self.current_period == "DAILY":
-            content.append("\n=== TODAY ===\n")
-            content.append(f"Delivery Income:        {stats['delivery_income']:.2f}")
-            content.append(f"Tip Cash:               {stats['tip_cash']:.2f}")
-            content.append(f"Tip Visa:               {stats['tip_visa']:.2f}")
-            content.append(f"\nPersonal Expenses:      {stats['total_expenses']:.2f}")
-            content.append("------------------------")
-            content.append(f"NET PROFIT:             {stats['net_profit']:.2f}")
+            table.title = f"[bold yellow]=== TODAY ===[/]"
+            table.add_row("Delivery Income", f"{stats['delivery_income']:.2f}")
+            table.add_row("Tip Cash", f"{stats['tip_cash']:.2f}")
+            table.add_row("Tip Visa", f"{stats['tip_visa']:.2f}")
+            table.add_section()
+            table.add_row("Personal Expenses", f"[red]{stats['total_expenses']:.2f}[/]")
+            table.add_section()
+            
+            # Net Profit
+            net = stats['net_profit']
+            color = "green" if net >= 0 else "red"
+            table.add_row("NET PROFIT", f"[{color}]{net:.2f}[/]")
         
         elif self.current_period == "WEEKLY":
-            content.append("\n=== THIS WEEK ===\n")
-            content.append(f"Delivery Income:        {stats['delivery_income']:.2f}")
-            content.append(f"Total Tips:             {stats['total_tips']:.2f}")
-            content.append(f"\nPersonal Expenses:      {stats['total_expenses']:.2f}")
-            content.append("------------------------")
-            content.append(f"WEEK NET PROFIT:        {stats['net_profit']:.2f}")
+            table.title = f"[bold yellow]=== THIS WEEK ===[/]"
+            table.add_row("Delivery Income", f"{stats['delivery_income']:.2f}")
+            table.add_row("Total Tips", f"{stats['total_tips']:.2f}")
+            table.add_section()
+            table.add_row("Personal Expenses", f"[red]{stats['total_expenses']:.2f}[/]")
+            table.add_section()
+            table.add_row("NET PROFIT", f"[{'green' if stats['net_profit'] >= 0 else 'red'}]{stats['net_profit']:.2f}[/]")
             
         elif self.current_period == "MONTHLY":
-            content.append("\n=== THIS MONTH ===\n")
-            content.append(f"Total Income:           {stats['total_income']:.2f}")
-            content.append(f"Total Expenses:         {stats['total_expenses']:.2f}")
-            content.append("------------------------")
-            content.append(f"MONTH NET PROFIT:       {stats['net_profit']:.2f}")
-            content.append(f"Daily Average:          {stats['daily_avg']:.2f}")
+            table.title = f"[bold yellow]=== THIS MONTH ===[/]"
+            table.add_row("Total Income", f"{stats['total_income']:.2f}")
+            table.add_row("Total Expenses", f"[red]{stats['total_expenses']:.2f}[/]")
+            table.add_section()
+            table.add_row("NET PROFIT", f"[{'green' if stats['net_profit'] >= 0 else 'red'}]{stats['net_profit']:.2f}[/]")
+            table.add_row("Daily Average", f"{stats['daily_avg']:.2f}")
             
         elif self.current_period == "YEARLY":
-            content.append("\n=== THIS YEAR ===\n")
-            content.append(f"Total Income:           {stats['total_income']:.2f}")
-            content.append(f"Orders Count:           {stats['orders_count']}")
-            content.append(f"\nBest Month:             {stats['best_month']}")
-            content.append("------------------------")
-            content.append(f"YEAR NET PROFIT:        {stats['net_profit']:.2f}")
+            table.title = f"[bold yellow]=== THIS YEAR ===[/]"
+            table.add_row("Total Income", f"{stats['total_income']:.2f}")
+            table.add_row("Orders Count", f"{stats['orders_count']}")
+            table.add_row("Best Month", f"{stats['best_month']}")
+            table.add_section()
+            table.add_row("NET PROFIT", f"[{'green' if stats['net_profit'] >= 0 else 'red'}]{stats['net_profit']:.2f}[/]")
 
         # تحديث العرض
-        self.analysis_view.update("\n".join(content))
+        self.analysis_view.update(table)
         # تحديث تسمية الزر
         self.query_one("#period-toggle").label = f"[ PERIOD: {self.current_period} ]"
             
@@ -267,10 +336,15 @@ class HistoryScreen(ModalScreen):
         if order:
             self.load_data() # تحديث القائمة لإخفاء النقطة
             
-            # تحديد أي شاشة تفاصيل سنفتح بناءً على نوع العملية
-            if order.get('mode') == 'SETTLEMENT':
+            # ✅ NEW: Check order mode and open appropriate details screen
+            if order.get('mode') == 'TIP':
+                # Open Tip Details Screen for tip entries
+                self.app.push_screen(TipDetailsScreen(order, display_id))
+            elif order.get('mode') == 'SETTLEMENT':
+                # Open Settlement Details Screen
                 self.app.push_screen(SettlementDetailsScreen(order, display_id))
             else:
+                # Open Order Details Screen for regular orders
                 self.app.push_screen(OrderDetailsScreen(order, display_id, self.db, self.load_data))
 
     def update_delete_button(self):

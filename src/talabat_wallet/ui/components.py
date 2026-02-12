@@ -19,24 +19,71 @@ class CustomButton(Button):
         self.custom_width = custom_width
     
     def render(self) -> str:
-        """رسم الزر مع الحفاظ على الحجم"""
+        """رسم الزر بسمك عمودي حقيقي باستخدام خطوط طرفية متعددة"""
         label = self.label.plain
-        # معالجة العربي قبل التقطيع لضمان الطول الصحيح ومعالجة العرض
         formatted_label = format_arabic(label)
         
+        # قص النص إذا كان طويلاً جداً
         if len(formatted_label) > self.custom_width:
             formatted_label = formatted_label[:self.custom_width-3] + "..."
         
+        # حساب الحشو الأفقي
         width = self.custom_width
-        # ملاحظة: التحاذي قد يكون صعباً مع العربي في بعض التيرمينالز، لكن سنحاول التوسط
-        padding = (width - len(formatted_label)) // 2
-        left_pad = " " * padding
-        right_pad = " " * (width - len(formatted_label) - padding)
+        h_padding = (width - len(formatted_label)) // 2
+        left_pad = " " * h_padding
+        right_pad = " " * (width - len(formatted_label) - h_padding)
         
-        if self.has_focus:
-            return f"[reverse]{left_pad}{formatted_label}{right_pad}[/]"
+        # السطر النصي الأساسي
+        text_line = f"{left_pad}{formatted_label}{right_pad}"
+        
+        # الحصول على الارتفاع من CSS styles
+        # نستخدم قيمة محسوبة أو قيمة افتراضية معقولة
+        try:
+            height_style = self.styles.height
+            if height_style is not None and hasattr(height_style, 'value'):
+                # إذا كان الارتفاع معرفاً في CSS
+                if hasattr(height_style, 'unit') and height_style.unit == 'cells':
+                    height = int(height_style.value)
+                else:
+                    # fallback للقيم العددية المباشرة
+                    height = int(float(height_style.value))
+            else:
+                # fallback إلى size.height إذا كان معقولاً
+                height = self.size.height if self.size.height >= 2 else 1
+        except (ValueError, TypeError, AttributeError):
+            # في حالة الخطأ، نستخدم القيمة الافتراضية
+            height = 1
+        
+        # إذا كان الارتفاع أقل من 2، نستخدم الرسم العادي (سطر واحد)
+        if height < 2:
+            content = text_line
         else:
-            return f"{left_pad}{formatted_label}{right_pad}"
+            # بناء الزر بسمك عمودي حقيقي (2-3 خطوط كحد أقصى للمain buttons)
+            # نحد الارتفاع الأقصى لتجنب الإفراط في الحجم
+            max_height = min(height, 3)  # أقصى ارتفاع 3 خطوط
+            lines = []
+            empty_line = " " * width
+            # وضع النص في المنتصف عمودياً
+            text_line_index = max_height // 2
+            
+            for row in range(max_height):
+                if row == text_line_index:
+                    lines.append(text_line)
+                else:
+                    lines.append(empty_line)
+            
+            content = "\n".join(lines)
+            
+        # تطبيق حالة التركيز
+        if self.has_focus:
+            # عند التركيز، نطبق الـ reverse على كل سطر
+            if "\n" in content:
+                focused_lines = [f"[reverse]{line}[/]" for line in content.split("\n")]
+                return "\n".join(focused_lines)
+            else:
+                return f"[reverse]{content}[/]"
+        else:
+            return content
 
 class WalletDisplay(Static):
     """عرض المحفظة"""
@@ -213,7 +260,13 @@ class OptionSelector(Static):
 
 class ArabicInput(Input):
     """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
-
+    
+    def __init__(self, *args, required: bool = False, min_value: float = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required = required
+        self.min_value = min_value
+        self._is_invalid = False
+    
     def _render_line(self, y: int) -> Strip:
         """تخصيص رسم السطر لدعم العربي والمحاذاة المباشرة"""
         # استدعاء الرسم الأصلي للحصول على الـ Strip (الذي يحتوي على النص والمؤشر)
@@ -249,3 +302,96 @@ class ArabicInput(Input):
     def watch_value(self, value: str) -> None:
         """تحديث الواجهة عند كل تغيير"""
         self.refresh()
+        
+    def validate_input(self) -> bool:
+        """التحقق من صحة الإدخال"""
+        value = self.value.strip()
+        
+        # إذا كان الحقل غير مطلوب وفارغ، فهو صحيح
+        if not self.required and not value:
+            self._is_invalid = False
+            self.remove_class("invalid")
+            return True
+            
+        # إذا كان الحقل مطلوب وفارغ
+        if self.required and not value:
+            self._is_invalid = True
+            self.add_class("invalid")
+            return False
+            
+        # التحقق من القيم العددية
+        if self.min_value is not None:
+            try:
+                num_value = float(value)
+                if num_value <= self.min_value:
+                    self._is_invalid = True
+                    self.add_class("invalid")
+                    return False
+            except ValueError:
+                self._is_invalid = True
+                self.add_class("invalid")
+                return False
+                
+        # الإدخال صحيح
+        self._is_invalid = False
+        self.remove_class("invalid")
+        return True
+        
+    def on_blur(self) -> None:
+        """لا ن-validatع عند فقدان التركيز - فقط عند الإرسال"""
+        pass
+        
+    def on_focus(self) -> None:
+        """إزالة حالة الخطأ عند التركيز وطلب الكيبورد في ترمكس"""
+        if self.has_class("invalid"):
+            self.remove_class("invalid")
+            
+        # طلب إظهار الكيبورد في ترمكس (أندرويد) بشكل تلقائي
+        try:
+            import subprocess
+            import platform
+            if platform.system() == "Linux":
+                # فحص سريع لبيئة ترمكس
+                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
+        except Exception:
+            pass
+
+class ShiftTimerDisplay(Static):
+    """عرض مؤقت الوردية"""
+    
+    start_time = reactive(None)
+    
+    def __init__(self, start_time: Optional[str] = None, **kwargs):
+        super().__init__(**kwargs)
+        self.start_time = start_time
+        self.timer = None
+        
+    def on_mount(self) -> None:
+        """بدء التحديث الدوري"""
+        self.timer = self.set_interval(1.0, self.update_timer)
+        
+    def update_timer(self) -> None:
+        """تحديث الوقت المنقضي"""
+        if not self.start_time:
+            self.update("")
+            return
+            
+        try:
+            from datetime import datetime
+            start = datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")
+            now = datetime.now()
+            diff = now - start
+            
+            total_seconds = int(diff.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            
+            time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
+            self.update(f"[b]SHIFT TIME: {time_str}[/b]")
+        except Exception:
+            self.update("Error")
+
+    def watch_start_time(self, start_time: Optional[str]) -> None:
+        """مراقبة تغيير وقت البدء"""
+        self.update_timer()

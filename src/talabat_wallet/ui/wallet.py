@@ -1,18 +1,116 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Static, Label, Input, ListView, ListItem, OptionList
+from textual.widgets import Static, Label, Input, ListView, ListItem, OptionList, Button
 from textual import events
 from .components import CustomButton, WalletDisplay, ArabicInput
 from ..utils import format_arabic
 from datetime import datetime
 from typing import Optional, Callable
 
+class EditTransactionScreen(ModalScreen):
+    """شاشة تعديل المعاملة"""
+    def __init__(self, db, txn_id: int, current_desc: str, current_amount: float, current_type: str, callback=None):
+        super().__init__()
+        self.db = db
+        self.txn_id = txn_id
+        self.current_desc = current_desc
+        self.current_amount = current_amount
+        self.current_type = current_type
+        self.callback = callback
+        self.txn_type = current_type
+
+    def compose(self) -> ComposeResult:
+        with Container(id="expense-form", classes="modal-dialog small-modal"):
+            yield Static("EDIT TRANSACTION", id="title")
+            
+            with Vertical(id="edit-content"):
+                # نوع العملية (زر تبديل)
+                type_label = "Type: INCOME" if self.txn_type == "IN" else "Type: EXPENSE"
+                type_class = "button-in" if self.txn_type == "IN" else "button-out"
+                yield CustomButton(type_label, id="toggle-type", classes=type_class)
+                
+                yield ArabicInput(value=self.current_desc, placeholder="Description", id="edit-desc")
+                yield Input(value=str(self.current_amount), placeholder="Amount", id="edit-amount", type="number")
+                
+                with Horizontal(id="dialog-buttons"):
+                    yield CustomButton("Save", id="save-edit", custom_width=12)
+                    yield CustomButton("Cancel", id="cancel-edit", custom_width=12)
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "toggle-type":
+            if self.txn_type == "OUT":
+                self.txn_type = "IN"
+                event.button.label = "Type: INCOME"
+                event.button.remove_class("button-out")
+                event.button.add_class("button-in")
+            else:
+                self.txn_type = "OUT"
+                event.button.label = "Type: EXPENSE"
+                event.button.remove_class("button-in")
+                event.button.add_class("button-out")
+                
+        elif event.button.id == "save-edit":
+            await self.save_changes()
+        elif event.button.id == "cancel-edit":
+            self.dismiss()
+
+    async def save_changes(self) -> None:
+        desc = self.query_one("#edit-desc").value.strip()
+        amount_str = self.query_one("#edit-amount").value.strip()
+        
+        if not desc or not amount_str:
+            self.notify("Please fill all fields", severity="error")
+            return
+            
+        try:
+            amount = float(amount_str)
+            if self.db.update_expense(self.txn_id, desc, amount, self.txn_type):
+                self.notify("Transaction updated!")
+                if self.callback: self.callback()
+                self.dismiss()
+            else:
+                self.notify("Failed to update", severity="error")
+        except ValueError:
+            self.notify("Invalid amount", severity="error")
+
+class ConfirmDeleteScreen(ModalScreen):
+    """شاشة تأكيد الحذف"""
+    def __init__(self, db, txn_id: int, callback=None):
+        super().__init__()
+        self.db = db
+        self.txn_id = txn_id
+        self.callback = callback
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="modal-dialog small-modal"):
+            yield Static("DELETE TRANSACTION?", id="title")
+            yield Static("\nAre you sure you want to delete this transaction?\n", classes="warning-text")
+            
+            with Horizontal(id="dialog-buttons"):
+                yield CustomButton("YES, DELETE", id="confirm-delete", classes="button-out", custom_width=16)
+                yield CustomButton("CANCEL", id="cancel-delete", custom_width=12)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "confirm-delete":
+            if self.db.delete_expense(self.txn_id):
+                self.notify("Transaction deleted!")
+                if self.callback: self.callback()
+                self.dismiss()
+            else:
+                self.notify("Failed to delete", severity="error")
+                self.dismiss()
+        elif event.button.id == "cancel-delete":
+            self.dismiss()
+
 class TransactionDetailsScreen(ModalScreen):
     """شاشة تفاصيل المعاملة"""
-    def __init__(self, txn: dict):
+    def __init__(self, db, txn: dict, callback=None):
         super().__init__()
+        self.db = db
         self.txn = txn
+        self.callback = callback
+        self.txn_id = txn['id']
 
     def compose(self) -> ComposeResult:
         txn_class = "txn-details-in" if self.txn['type'] == 'IN' else "txn-details-out"
@@ -28,12 +126,33 @@ class TransactionDetailsScreen(ModalScreen):
                 # إضافة كلاس للمبلغ للتلوين
                 yield Label(f"Amount: {self.txn['amount']:.2f} EGP", id="details-amount-text")
             
+            # أزرار التحكم (Grid)
+            # تم طلب: Edit, Delete, Close بجانب بعض
             with Horizontal(id="dialog-buttons"):
-                yield CustomButton("Close", id="close-txn-details")
+                yield CustomButton("Edit", id="edit-txn", custom_width=12)
+                yield CustomButton("Delete", id="delete-txn", custom_width=12)
+                yield CustomButton("Close", id="close-txn-details", custom_width=12)
 
-    def on_button_pressed(self, event: CustomButton.Pressed) -> None:
+    async def on_button_pressed(self, event: CustomButton.Pressed) -> None:
         if event.button.id == "close-txn-details":
             self.dismiss()
+        elif event.button.id == "delete-txn":
+            # إغلاق هذه الشاشة وفتح تأكيد الحذف
+            self.dismiss()
+            await self.app.push_screen(ConfirmDeleteScreen(self.db, self.txn_id, self.callback))
+        elif event.button.id == "edit-txn":
+            # إغلاق هذه الشاشة وفتح التعديل
+            self.dismiss()
+            await self.app.push_screen(
+                EditTransactionScreen(
+                    self.db, 
+                    self.txn_id, 
+                    self.txn['description'], 
+                    self.txn['amount'], 
+                    self.txn['type'], 
+                    self.callback
+                )
+            )
 
 class ExpenseRow(ListItem):
     """سطر لعرض مصروف واحد"""
@@ -49,8 +168,9 @@ class ExpenseRow(ListItem):
         
         with Horizontal(classes=f"expense-row-content {txn_class}"):
             yield Label(self.expense['datetime'][11:16], classes="expense-date")
-            yield Label(format_arabic(self.expense['description']), classes="expense-desc")
-            yield Label(f"{txn_char} {self.expense['amount']:.2f}", classes="expense-amount")
+            desc = self.expense.get('description', 'No Desc')
+            yield Label(format_arabic(desc), classes="expense-desc")
+            yield Label(f"{txn_char} {self.expense.get('amount', 0.0):.2f}", classes="expense-amount")
 
 class WalletScreen(ModalScreen):
     """شاشة المحفظة والمصاريف المتطورة"""
@@ -83,15 +203,13 @@ class WalletScreen(ModalScreen):
                 yield Static("Record New Transaction", classes="section-title")
                 with Vertical(id="expense-form"):
                     with Horizontal(id="txn-type-toggle"):
-                        yield CustomButton("Type: EXPENSE", id="toggle-txn-type", custom_width=25)
+                        yield CustomButton("Type: EXPENSE", id="toggle-txn-type", custom_width=16)
                     
-                    yield ArabicInput(placeholder="Description (e.g. Lunch or Bonus)", id="expense-desc")
-                    yield Input(placeholder="Amount", id="expense-amount", type="number")
+                    yield ArabicInput(placeholder="Description (e.g. Lunch or Bonus)", id="expense-desc", required=True)
+                    yield ArabicInput(placeholder="Amount", id="expense-amount", required=True, min_value=0)
                     
                     with Horizontal(id="expense-buttons"):
-                        yield CustomButton("Save Transaction", id="save-expense", custom_width=25)
-                
-                # ... existing history ...
+                        yield CustomButton("Save", id="save-expense", custom_width=12)
                 
                 yield Static(classes="divider")
                 
@@ -101,7 +219,7 @@ class WalletScreen(ModalScreen):
                 yield self.expense_list
                 
                 with Horizontal(id="dialog-buttons"):
-                    yield CustomButton("Back", id="back")
+                    yield CustomButton("Back", id="back", custom_width=12)
             
             # حاوية الاقتراحات - عائمة في طبقة منفصلة
             self.suggestions_list = OptionList(id="suggestion-list")
@@ -123,11 +241,17 @@ class WalletScreen(ModalScreen):
         self.expense_list.clear()
         for exp in expenses:
             self.expense_list.append(ExpenseRow(exp))
+            
+        # تحديث الأرصدة المعروضة أيضاً إذا تغيرت
+        settings = self.db.get_settings()
+        self.query_one("#wallet-personal").value = settings['personal_wallet']
+        self.query_one("#wallet-company").value = settings['company_wallet']
 
     def on_list_view_selected(self, message: ListView.Selected) -> None:
         """عند الضغط على عنصر في التاريخ"""
         if isinstance(message.item, ExpenseRow):
-            self.app.push_screen(TransactionDetailsScreen(message.item.expense))
+            # نمرر self.load_data كـ callback ليتم تحديث القائمة عند العودة من الحذف/التعديل
+            self.app.push_screen(TransactionDetailsScreen(self.db, message.item.expense, callback=self.load_data))
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """تحديث الاقتراحات عند الكتابة"""
@@ -189,6 +313,11 @@ class WalletScreen(ModalScreen):
             desc_input = self.query_one("#expense-desc")
             amount_input = self.query_one("#expense-amount")
             
+            # التحقق من صحة الحقول قبل الحفظ
+            if not desc_input.validate_input() or not amount_input.validate_input():
+                self.app.notify("Please fill all fields with valid data", severity="error")
+                return
+                
             description = desc_input.value.strip()
             amount_str = amount_input.value.strip()
             
@@ -202,6 +331,8 @@ class WalletScreen(ModalScreen):
                     self.app.notify("Transaction recorded!")
                     desc_input.value = ""
                     amount_input.value = ""
+                    desc_input.remove_class("invalid")
+                    amount_input.remove_class("invalid")
                     self.suggestions_list.display = False
                     self.load_data()
                 else:
