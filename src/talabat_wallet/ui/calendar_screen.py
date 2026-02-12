@@ -285,8 +285,18 @@ class AddShiftDialog(ModalScreen):
                 yield Button("✕", id="close-x-btn", classes="close-icon-btn")
             
             with Vertical(classes="dialog-body"):
-                yield TimePickerWidget(label="Start Time", initial_time="09:00", id="start-picker")
-                yield TimePickerWidget(label="End Time", initial_time="17:00", id="end-picker")
+                # Calculate dynamic defaults
+                now = datetime.now()
+                # Start time: Next hour, 00 minutes
+                next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                # End time: Start + 6 hours
+                end_time_dt = next_hour + timedelta(hours=6)
+                
+                start_str = next_hour.strftime("%H:%M")
+                end_str = end_time_dt.strftime("%H:%M")
+
+                yield TimePickerWidget(label="Start Time", initial_time=start_str, id="start-picker")
+                yield TimePickerWidget(label="End Time", initial_time=end_str, id="end-picker")
                 
                 yield Static("", id="error-msg", classes="error-text")
             
