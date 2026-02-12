@@ -53,7 +53,11 @@ class ShiftSummaryScreen(ModalScreen):
                 
                 with Horizontal(id="shift-summary-buttons"):
                     yield CustomButton("Close", id="close-shift-summary")
-    
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
         if event.button.id == "close-shift-summary":
@@ -92,7 +96,11 @@ class ShiftsHistoryScreen(ModalScreen):
         """عند تحميل الشاشة"""
         self.refresh_history() # تحديث فوري عند الفتح
         self.set_interval(2, self.refresh_history)
-        
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
         if event.button.id in ["close-history-btn", "close-x-btn"]:

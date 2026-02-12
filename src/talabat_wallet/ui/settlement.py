@@ -88,7 +88,11 @@ class SettlementScreen(ModalScreen):
         """عند تغيير قيمة الإدخال"""
         if event.input.id == "settlement-amount":
             self.update_preview()
-    
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
         if event.button.id == "process":

@@ -213,7 +213,11 @@ class AddOrderScreen(ModalScreen):
             self.tip_visa_input.focus()
         elif event.input.id == "tip-visa":
             await self.submit_order()
-    
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
         if event.button.id == "submit":

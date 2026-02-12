@@ -356,6 +356,16 @@ class ArabicInput(Input):
         except Exception:
             pass
 
+    def on_click(self) -> None:
+        """طلب الكيبورد عند النقر، حتى لو كان الحقل نشطاً بالفعل"""
+        try:
+            import subprocess
+            import platform
+            if platform.system() == "Linux":
+                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
+        except Exception:
+            pass
+
 class ShiftTimerDisplay(Static):
     """عرض مؤقت الوردية"""
     

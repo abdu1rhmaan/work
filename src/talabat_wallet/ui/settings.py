@@ -50,7 +50,11 @@ class SettingsScreen(ModalScreen):
                     yield CustomButton("Export Report", id="export-report", custom_width=16)
                     yield CustomButton("Database", id="database-mgmt", custom_width=16)
                     yield CustomButton("Close", id="back", custom_width=16)
-    
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
         if event.button.id == "save":
@@ -125,6 +129,10 @@ class DatabaseSettingsScreen(ModalScreen):
                     yield CustomButton("Reset Database", id="reset-db")
                 with Horizontal(id="dialog-buttons"):
                     yield CustomButton("Back", id="back")
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
                 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "reset-db":
@@ -145,6 +153,11 @@ class ConfirmResetScreen(ModalScreen):
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("YES", id="confirm")
                 yield CustomButton("NO", id="cancel")
+    
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "confirm":
             self.db.reset_database()
@@ -175,12 +188,41 @@ class BatchPricesScreen(ModalScreen):
                 with Horizontal(id="prices-buttons"):
                     yield CustomButton("Save All", id="save-prices")
                     yield CustomButton("Back", id="back-prices")
+    
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save-prices":
             await self.save_all_prices()
         elif event.button.id == "back-prices":
             self.dismiss()
     async def save_all_prices(self) -> None:
+        has_error = False
+        for batch_name in self.batch_prices.keys():
+            # Validate Mart Price
+            mart_input = self.query_one(f"#mart-{batch_name}")
+            try:
+                float(mart_input.value or 0)
+                mart_input.remove_class("invalid")
+            except ValueError:
+                mart_input.add_class("invalid")
+                has_error = True
+            
+            # Validate Restaurant Price
+            rest_input = self.query_one(f"#restaurant-{batch_name}")
+            try:
+                float(rest_input.value or 0)
+                rest_input.remove_class("invalid")
+            except ValueError:
+                rest_input.add_class("invalid")
+                has_error = True
+
+        if has_error:
+            self.notify("Please fix invalid price values", severity="error")
+            return
+
         try:
             for batch_name in self.batch_prices.keys():
                 mart_price = float(self.query_one(f"#mart-{batch_name}").value or 0)

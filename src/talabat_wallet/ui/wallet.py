@@ -37,6 +37,10 @@ class EditTransactionScreen(ModalScreen):
                     yield CustomButton("Save", id="save-edit", custom_width=12)
                     yield CustomButton("Cancel", id="cancel-edit", custom_width=12)
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "toggle-type":
             if self.txn_type == "OUT":
@@ -56,11 +60,33 @@ class EditTransactionScreen(ModalScreen):
             self.dismiss()
 
     async def save_changes(self) -> None:
-        desc = self.query_one("#edit-desc").value.strip()
-        amount_str = self.query_one("#edit-amount").value.strip()
+        desc_input = self.query_one("#edit-desc")
+        amount_input = self.query_one("#edit-amount")
         
-        if not desc or not amount_str:
-            self.notify("Please fill all fields", severity="error")
+        desc = desc_input.value.strip()
+        amount_str = amount_input.value.strip()
+        
+        has_error = False
+        
+        if not desc:
+            desc_input.add_class("invalid")
+            has_error = True
+        else:
+            desc_input.remove_class("invalid")
+            
+        if not amount_str:
+            amount_input.add_class("invalid")
+            has_error = True
+        else:
+            try:
+                float(amount_str) # Check if valid number
+                amount_input.remove_class("invalid")
+            except ValueError:
+                amount_input.add_class("invalid")
+                has_error = True
+
+        if has_error:
+            self.notify("Please check the highlighted fields", severity="error")
             return
             
         try:
@@ -90,6 +116,10 @@ class ConfirmDeleteScreen(ModalScreen):
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("YES, DELETE", id="confirm-delete", classes="button-out", custom_width=16)
                 yield CustomButton("CANCEL", id="cancel-delete", custom_width=12)
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "confirm-delete":
@@ -132,6 +162,10 @@ class TransactionDetailsScreen(ModalScreen):
                 yield CustomButton("Edit", id="edit-txn", custom_width=12)
                 yield CustomButton("Delete", id="delete-txn", custom_width=12)
                 yield CustomButton("Close", id="close-txn-details", custom_width=12)
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
 
     async def on_button_pressed(self, event: CustomButton.Pressed) -> None:
         if event.button.id == "close-txn-details":
@@ -225,6 +259,12 @@ class WalletScreen(ModalScreen):
             self.suggestions_list = OptionList(id="suggestion-list")
             self.suggestions_list.display = False
             yield self.suggestions_list
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            if self.on_close:
+                self.on_close()
+            self.dismiss()
 
     def on_mount(self) -> None:
         self.load_data()

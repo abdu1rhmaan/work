@@ -1095,3 +1095,9 @@ HistoryRow:focus {
     color: $text-muted;
     padding: 2;
 }
+
+.invalid {
+    border: thick $error !important;
+    background: $error-darken-3 50%;
+    color: $error-lighten-1;
+}

@@ -42,6 +42,10 @@ class OrderDetailsScreen(ModalScreen):
                 yield CustomButton("Edit", id="edit-order")
                 yield CustomButton("Close", id="close-details")
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id in ["close-details", "close-x"]:
             self.dismiss()
@@ -84,6 +88,10 @@ class TipDetailsScreen(ModalScreen):
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("Close", id="close-details")
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id in ["close-details", "close-x"]:
             self.dismiss()
@@ -118,6 +126,10 @@ class SettlementDetailsScreen(ModalScreen):
             
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("Close", id="close-details")
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id in ["close-details", "close-x"]:
@@ -191,6 +203,10 @@ class HistoryScreen(ModalScreen):
                     with Horizontal(id="dialog-buttons"):
                         yield CustomButton("Delete Selected", id="delete-order")
                         yield CustomButton("Close", id="back")
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
     
     def on_mount(self) -> None:
         """تهيئة الشاشة"""
@@ -397,6 +413,11 @@ class HistoryScreen(ModalScreen):
                     with Horizontal(id="dialog-buttons"):
                         yield CustomButton("Delete", id="ok")
                         yield CustomButton("Cancel", id="cancel")
+            
+            def on_click(self, event) -> None:
+                if event.widget == self:
+                    self.dismiss()
+
             async def on_button_pressed(self, event):
                 if event.button.id == "ok":
                     await callback()
@@ -414,6 +435,11 @@ class HistoryScreen(ModalScreen):
                     with Horizontal(id="dialog-buttons"):
                         yield CustomButton("OK", id="ok")
                         yield CustomButton("Cancel", id="cancel")
+            
+            def on_click(self, event) -> None:
+                if event.widget == self:
+                    self.dismiss()
+
             async def on_button_pressed(self, event):
                 if event.button.id == "ok":
                     await callback()

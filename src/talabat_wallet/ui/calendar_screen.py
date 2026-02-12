@@ -115,6 +115,10 @@ class CalendarScreen(ModalScreen):
         
         self.query_one("#month-label").update(f"{calendar.month_name[self.month]} {self.year}")
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         
@@ -200,6 +204,10 @@ class DayShiftsDialog(ModalScreen):
 
     async def on_mount(self) -> None:
         self.refresh_shifts()
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-x-btn":
@@ -303,6 +311,10 @@ class AddShiftDialog(ModalScreen):
             with Horizontal(classes="dialog-buttons"):
                 yield CustomButton("Save", id="save-btn", variant="success")
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-x-btn":
             self.dismiss()
@@ -377,6 +389,10 @@ class ShiftDetailsDialog(ModalScreen):
         self.query_one("#end-break-btn").styles.display = "block" if (is_active and on_break) else "none"
         self.query_one("#delete-shift-btn").styles.display = "block"
 
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-x-btn":
             self.dismiss()
@@ -441,6 +457,10 @@ class BreakDialog(ModalScreen):
                  yield CustomButton("25 Minutes", id="break-25")
                  yield CustomButton("30 Minutes", id="break-30")
                  yield CustomButton("60 Minutes", id="break-60")
+
+    def on_click(self, event) -> None:
+        if event.widget == self:
+            self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-x-btn":
