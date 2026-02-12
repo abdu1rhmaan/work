@@ -1,13 +1,46 @@
 from textual.app import ComposeResult
 from textual.screen import Screen, ModalScreen
 from textual.containers import Container, Grid, Vertical, Horizontal
-from textual.widgets import Button, Static, Label
+from textual.widgets import Button, Static, Label, Select
 from textual.message import Message
 from textual import events
 from datetime import datetime, timedelta, date
 import calendar
 from .components import CustomButton
 from ..utils import format_arabic
+
+class TimePickerWidget(Container):
+    """ويدجت لاختيار الوقت (ساعات ودقائق)"""
+    def __init__(self, label: str = "", initial_time: str = "00:00", **kwargs):
+        super().__init__(**kwargs)
+        self.label_text = label
+        self.initial_time = initial_time
+
+    def compose(self) -> ComposeResult:
+        hours = [(f"{i:02d}", f"{i:02d}") for i in range(24)]
+        minutes = [(f"{i:02d}", f"{i:02d}") for i in range(60)]
+
+        # Parsing initial time safely
+        try:
+            h, m = self.initial_time.split(":")
+        except:
+            h, m = "00", "00"
+
+        with Horizontal(classes="time-picker-row"):
+            if self.label_text:
+                yield Label(self.label_text, classes="time-picker-label")
+            yield Select(hours, value=h, id="hour-select", allow_blank=False)
+            yield Static(":", classes="time-separator")
+            yield Select(minutes, value=m, id="minute-select", allow_blank=False)
+
+    @property
+    def value(self) -> str:
+        try:
+            h = self.query_one("#hour-select").value
+            m = self.query_one("#minute-select").value
+            return f"{h}:{m}"
+        except:
+            return "00:00"
 
 class CalendarScreen(ModalScreen):
     """شاشة التقويم لإدارة الورديات (بصيغة بوب آب)"""
@@ -252,40 +285,22 @@ class AddShiftDialog(ModalScreen):
                 yield Button("✕", id="close-x-btn", classes="close-icon-btn")
             
             with Vertical(classes="dialog-body"):
-                yield Label("Start Time") 
-                yield Input(placeholder="e.g. 11:00 PM or 23:00", id="start-time")
-                
-                yield Label("End Time")
-                yield Input(placeholder="e.g. 07:00 AM or 07:00", id="end-time")
+                yield TimePickerWidget(label="Start Time", initial_time="09:00", id="start-picker")
+                yield TimePickerWidget(label="End Time", initial_time="17:00", id="end-picker")
                 
                 yield Static("", id="error-msg", classes="error-text")
             
             with Horizontal(classes="dialog-buttons"):
                 yield CustomButton("Save", id="save-btn", variant="success")
 
-    def parse_time(self, time_str):
-        """Parse time string to HH:MM (24h)"""
-        time_str = time_str.strip().upper()
-        if not time_str: return None
-        
-        formats = ["%I:%M %p", "%I %p", "%H:%M", "%H"]
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(time_str, fmt)
-                return dt.strftime("%H:%M")
-            except ValueError:
-                continue
-        return None
-
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-x-btn":
             self.dismiss()
         elif event.button.id == "save-btn":
-            start_in = self.query_one("#start-time").value
-            end_in = self.query_one("#end-time").value
+            start_time = self.query_one("#start-picker").value
+            end_time = self.query_one("#end-picker").value
             
-            start_time = self.parse_time(start_in)
-            end_time = self.parse_time(end_in)
+            # Already formatted as HH:MM
             
             if not start_time or not end_time:
                 self.query_one("#error-msg").update("Invalid Time Format! (e.g. 10:00 PM)")

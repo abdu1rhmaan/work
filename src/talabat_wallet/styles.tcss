@@ -310,6 +310,53 @@ ModalScreen {
     border: thick $primary;
 }
 
+TimePickerWidget {
+    height: auto;
+    width: 100%;
+    margin-bottom: 1;
+    padding: 0;
+}
+
+.time-picker-row {
+    height: auto;
+    width: 100%;
+    align: center middle;
+    margin: 0;
+    padding: 0 1;
+}
+
+.time-picker-label {
+    width: 30%;
+    text-align: right;
+    margin-right: 1;
+    color: $text-muted;
+    content-align: right middle;
+    height: 100%;
+}
+
+.time-picker-row Select {
+    width: 25%;
+    min-width: 8;
+    margin: 0; /* Remove default margins */
+    margin-bottom: 0; /* Explicitly override global margin */
+    height: auto;
+}
+
+.time-separator {
+    width: 2;
+    text-align: center;
+    content-align: center middle;
+    text-style: bold;
+    color: $accent;
+    padding: 0;
+}
+
+.error-text {
+    color: $error;
+    text-align: center;
+    margin-top: 1;
+}
+
 #history-dialog-main.analysis-modal {
     width: 95% !important;
     height: auto !important;

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 from textual import events
 from textual.app import App, ComposeResult
