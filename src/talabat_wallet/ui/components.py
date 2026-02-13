@@ -263,10 +263,6 @@ class AppInput(Input):
     
     async def on_click(self) -> None:
         """Force keyboard reopen on mobile with robust focus handling"""
-        # Debug feedback
-        if self.app:
-            self.app.notify("Requesting Keyboard...", timeout=1.0)
-
         # 1. HARD RESET: Clear focus from the entire screen first
         if self.screen:
             self.screen.set_focus(None)
@@ -293,48 +289,6 @@ class AppInput(Input):
             pass
             
         self.refresh()
-        
-        # 4. Try external command AFTER focus is established
-        self._show_keyboard()
-
-    def _show_keyboard(self) -> None:
-        """Explicitly call termux-keyboard-show with DEBUG info"""
-        try:
-            import subprocess
-            import os
-            import shutil
-            
-            cmd_short = "termux-keyboard-show"
-            cmd_abs = "/data/data/com.termux/files/usr/bin/termux-keyboard-show"
-            
-            # 1. Try Absolute Path
-            if os.path.exists(cmd_abs):
-                try:
-                    subprocess.Popen([cmd_abs], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    return
-                except Exception as e:
-                    if self.app: self.app.notify(f"Abs Run Error: {e}", severity="error")
-
-            # 2. Try PATH
-            path_loc = shutil.which(cmd_short)
-            if path_loc:
-                try:
-                    subprocess.Popen([path_loc], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    return
-                except Exception as e:
-                    if self.app: self.app.notify(f"PATH Run Error: {e}", severity="error")
-
-            # 3. Debug Failure
-            exists_abs = os.path.exists(cmd_abs)
-            path_env = os.environ.get('PATH', 'No PATH')
-            
-            msg = f"API FAIL. AbsExists: {exists_abs}\nWhich: {path_loc}\nPATH len: {len(path_env)}"
-            if self.app:
-                self.app.notify(msg, severity="error", timeout=10.0)
-
-        except Exception as e:
-            if self.app:
-                self.app.notify(f"Global Error: {e}", severity="error")
 
 class ArabicInput(AppInput):
     """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
