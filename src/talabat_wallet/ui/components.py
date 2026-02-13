@@ -301,26 +301,31 @@ class AppInput(Input):
         """Explicitly call termux-keyboard-show"""
         try:
             import subprocess
-            import shutil
-            import os
             
-            cmd = "termux-keyboard-show"
-            
-            # Check PATH first
-            if not shutil.which(cmd):
-                # Fallback to absolute path
-                fallback = "/data/data/com.termux/files/usr/bin/termux-keyboard-show"
-                if os.path.exists(fallback):
-                    cmd = fallback
-                else:
-                    if self.app:
-                        self.app.notify("Termux:API missing! Install 'termux-api' pkg.", severity="warning", timeout=5.0)
-                    return
+            # Helper to run command safely
+            def run_cmd(args):
+                subprocess.Popen(args, 
+                               stdout=subprocess.DEVNULL, 
+                               stderr=subprocess.DEVNULL)
 
-            # Try running
-            subprocess.Popen([cmd], 
-                           stdout=subprocess.DEVNULL, 
-                           stderr=subprocess.DEVNULL)
+            try:
+                # Try simple command first (relies on PATH)
+                run_cmd(["termux-keyboard-show"])
+                return
+            except FileNotFoundError:
+                pass
+
+            try:
+                # Try absolute path fallback
+                run_cmd(["/data/data/com.termux/files/usr/bin/termux-keyboard-show"])
+                return
+            except FileNotFoundError:
+                pass
+
+            # If we get here, both failed
+            if self.app:
+                self.app.notify("Termux:API missing! Please install properly.", severity="warning", timeout=3.0)
+
         except Exception:
             pass
 
