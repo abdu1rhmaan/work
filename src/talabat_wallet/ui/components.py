@@ -262,11 +262,26 @@ class AppInput(Input):
     """Custom Input that forces keyboard reopen on mobile"""
     
     async def on_click(self) -> None:
-        """Force keyboard reopen on mobile by toggling focus"""
-        # This hack forces the soft keyboard to reappear on Termux/Android
-        if self.has_focus:
-            self.blur()
-            self.focus()
+        """Force keyboard reopen on mobile with robust focus handling"""
+        # Force new focus event
+        self.blur()
+        await self.focus()
+
+        # Force App + Screen focus (VERY IMPORTANT FOR TERMUX)
+        if self.app:
+            self.app.set_focus(self)
+
+        if self.app and self.app.screen:
+            self.app.screen.set_focus(self)
+
+        # Force cursor visibility
+        try:
+            self.cursor_blink = True
+        except Exception:
+            pass
+
+        # Force redraw
+        self.refresh()
         
     def _show_keyboard(self) -> None:
         # Legacy method kept for compatibility if needed, but on_click logic is primary now

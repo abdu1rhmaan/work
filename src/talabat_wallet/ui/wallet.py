@@ -20,6 +20,10 @@ class EditTransactionScreen(ModalScreen):
         self.callback = callback
         self.txn_type = current_type
 
+    def on_mount(self) -> None:
+        """Autofocus first input"""
+        self.query_one("#edit-desc").focus()
+
     def compose(self) -> ComposeResult:
         with Container(id="expense-form", classes="modal-dialog small-modal"):
             yield Static("EDIT TRANSACTION", id="title")

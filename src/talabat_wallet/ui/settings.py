@@ -172,6 +172,15 @@ class BatchPricesScreen(ModalScreen):
         super().__init__()
         self.db = db
         self.batch_prices = self.db.get_batch_prices()
+
+    def on_mount(self) -> None:
+        """Autofocus first input"""
+        try:
+            # Try to focus the first mart input of the first batch
+            first_batch = next(iter(self.batch_prices.keys()))
+            self.query_one(f"#mart-{first_batch}").focus()
+        except Exception:
+            pass
     def compose(self) -> ComposeResult:
         with Container(id="prices-dialog", classes="modal-dialog"):
             yield Static("BATCH PRICES EDITOR", id="title")
