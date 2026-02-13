@@ -302,15 +302,23 @@ class AppInput(Input):
         try:
             import subprocess
             import shutil
+            import os
             
-            # Check if command exists
-            if not shutil.which("termux-keyboard-show"):
-                if self.app:
-                    self.app.notify("Termux:API missing! Install 'termux-api' pkg.", severity="warning", timeout=5.0)
-                return
+            cmd = "termux-keyboard-show"
+            
+            # Check PATH first
+            if not shutil.which(cmd):
+                # Fallback to absolute path
+                fallback = "/data/data/com.termux/files/usr/bin/termux-keyboard-show"
+                if os.path.exists(fallback):
+                    cmd = fallback
+                else:
+                    if self.app:
+                        self.app.notify("Termux:API missing! Install 'termux-api' pkg.", severity="warning", timeout=5.0)
+                    return
 
             # Try running
-            subprocess.Popen(["termux-keyboard-show"], 
+            subprocess.Popen([cmd], 
                            stdout=subprocess.DEVNULL, 
                            stderr=subprocess.DEVNULL)
         except Exception:
