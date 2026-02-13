@@ -263,26 +263,33 @@ class AppInput(Input):
     
     async def on_click(self) -> None:
         """Force keyboard reopen on mobile with robust focus handling"""
-        # Force new focus event with DELAY (Crucial for Termux)
-        self.blur()
+        # Debug feedback
+        if self.app:
+            self.app.notify("Requesting Keyboard...", timeout=1.0)
+
+        # 1. HARD RESET: Clear focus from the entire screen first
+        if self.screen:
+            self.screen.set_focus(None)
         
-        # Use a timer to refocus to ensure the blur registers
-        self.set_timer(0.1, self._force_focus)
+        # 2. Force invalidation to ensure UI updates reflect the "blur"
+        self.refresh()
         
-        # Try to call termux-keyboard-show directly
+        # 3. Schedule the re-focus with a sufficient delay for the UI to "settle"
+        self.set_timer(0.2, self._force_focus)
+        
+        # 4. Try external command immediately
         self._show_keyboard()
 
     def _force_focus(self) -> None:
         """Helper to force focus after delay"""
+        # Focus THIS widget
         self.focus()
         
-        # Force App + Screen focus
-        if self.app:
-            self.app.set_focus(self)
-        if self.app and self.app.screen:
-            self.app.screen.set_focus(self)
+        # Redundant safety: Force screen focus
+        if self.screen:
+            self.screen.set_focus(self)
             
-        # Force cursor
+        # Force cursor blinking to signal activity
         try:
             self.cursor_blink = True
         except Exception:
@@ -294,13 +301,10 @@ class AppInput(Input):
         """Explicitly call termux-keyboard-show"""
         try:
             import subprocess
-            import shutil
-            
-            # Check if command exists first
-            if shutil.which("termux-keyboard-show"):
-                subprocess.Popen(["termux-keyboard-show"], 
-                               stdout=subprocess.DEVNULL, 
-                               stderr=subprocess.DEVNULL)
+            # Try running blindly without checking path first (path issues sometimes happen)
+            subprocess.Popen(["termux-keyboard-show"], 
+                           stdout=subprocess.DEVNULL, 
+                           stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
