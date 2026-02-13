@@ -365,7 +365,6 @@ class ArabicInput(AppInput):
         """إزالة حالة الخطأ عند التركيز وطلب الكيبورد"""
         if self.has_class("invalid"):
             self.remove_class("invalid")
-        super().on_focus()
 
 class ShiftTimerDisplay(Static):
     """عرض مؤقت الوردية"""
