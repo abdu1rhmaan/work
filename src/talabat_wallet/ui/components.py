@@ -258,28 +258,27 @@ class OptionSelector(Static):
         # إرسال رسالة بتغيير القيمة
         self.post_message(self.Selected(self, new_val))
 
-class KeyboardAwareInput(Input):
-    """Input widget that ensures keyboard appears on Termux/Mobile"""
+class AppInput(Input):
+    """Custom Input that forces keyboard reopen on mobile"""
     
-    def on_click(self) -> None:
-        """Force keyboard show on click"""
-        self._show_keyboard()
-        
-    def on_focus(self) -> None:
-        """Force keyboard show on focus"""
-        self._show_keyboard()
+    async def on_click(self) -> None:
+        """Force keyboard reopen on mobile by toggling focus"""
+        # This hack forces the soft keyboard to reappear on Termux/Android
+        if self.has_focus:
+            self.blur()
+            self.focus()
         
     def _show_keyboard(self) -> None:
+        # Legacy method kept for compatibility if needed, but on_click logic is primary now
         try:
             import subprocess
             import platform
-            # Try both termux-keyboard methods just in case
             if platform.system() == "Linux":
                 subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
         except Exception:
             pass
 
-class ArabicInput(KeyboardAwareInput):
+class ArabicInput(AppInput):
     """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
     
     def __init__(self, *args, required: bool = False, min_value: float = None, **kwargs):

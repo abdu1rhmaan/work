@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Static, Label, Input, ListView, ListItem, OptionList, Button
+from textual.widgets import Static, Label, ListView, ListItem, OptionList, Button
 from textual import events
 from .components import CustomButton, WalletDisplay, ArabicInput
 from ..utils import format_arabic

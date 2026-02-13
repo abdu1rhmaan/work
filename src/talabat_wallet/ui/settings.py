@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Container, Horizontal, Vertical, Grid
-from textual.widgets import Button, Static, Input, Select
+from textual.widgets import Button, Static, Select
 from textual import events
 from ..database import Database
 from .components import CustomButton, OptionSelector
