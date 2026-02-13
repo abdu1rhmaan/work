@@ -263,33 +263,44 @@ class AppInput(Input):
     
     async def on_click(self) -> None:
         """Force keyboard reopen on mobile with robust focus handling"""
-        # Force new focus event
+        # Force new focus event with DELAY (Crucial for Termux)
         self.blur()
-        self.focus()
+        
+        # Use a timer to refocus to ensure the blur registers
+        self.set_timer(0.1, self._force_focus)
+        
+        # Try to call termux-keyboard-show directly
+        self._show_keyboard()
 
-        # Force App + Screen focus (VERY IMPORTANT FOR TERMUX)
+    def _force_focus(self) -> None:
+        """Helper to force focus after delay"""
+        self.focus()
+        
+        # Force App + Screen focus
         if self.app:
             self.app.set_focus(self)
-
         if self.app and self.app.screen:
             self.app.screen.set_focus(self)
-
-        # Force cursor visibility
+            
+        # Force cursor
         try:
             self.cursor_blink = True
         except Exception:
             pass
-
-        # Force redraw
+            
         self.refresh()
-        
+
     def _show_keyboard(self) -> None:
-        # Legacy method kept for compatibility if needed, but on_click logic is primary now
+        """Explicitly call termux-keyboard-show"""
         try:
             import subprocess
-            import platform
-            if platform.system() == "Linux":
-                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
+            import shutil
+            
+            # Check if command exists first
+            if shutil.which("termux-keyboard-show"):
+                subprocess.Popen(["termux-keyboard-show"], 
+                               stdout=subprocess.DEVNULL, 
+                               stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
