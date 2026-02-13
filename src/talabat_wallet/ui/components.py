@@ -276,9 +276,6 @@ class AppInput(Input):
         
         # 3. Schedule the re-focus with a sufficient delay for the UI to "settle"
         self.set_timer(0.2, self._force_focus)
-        
-        # 4. Try external command immediately
-        self._show_keyboard()
 
     def _force_focus(self) -> None:
         """Helper to force focus after delay"""
@@ -296,12 +293,23 @@ class AppInput(Input):
             pass
             
         self.refresh()
+        
+        # 4. Try external command AFTER focus is established
+        self._show_keyboard()
 
     def _show_keyboard(self) -> None:
         """Explicitly call termux-keyboard-show"""
         try:
             import subprocess
-            # Try running blindly without checking path first (path issues sometimes happen)
+            import shutil
+            
+            # Check if command exists
+            if not shutil.which("termux-keyboard-show"):
+                if self.app:
+                    self.app.notify("Termux:API missing! Install 'termux-api' pkg.", severity="warning", timeout=5.0)
+                return
+
+            # Try running
             subprocess.Popen(["termux-keyboard-show"], 
                            stdout=subprocess.DEVNULL, 
                            stderr=subprocess.DEVNULL)
