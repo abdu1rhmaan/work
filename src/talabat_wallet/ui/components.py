@@ -265,7 +265,7 @@ class AppInput(Input):
         """Force keyboard reopen on mobile with robust focus handling"""
         # Force new focus event
         self.blur()
-        await self.focus()
+        self.focus()
 
         # Force App + Screen focus (VERY IMPORTANT FOR TERMUX)
         if self.app:
