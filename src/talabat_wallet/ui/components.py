@@ -298,36 +298,43 @@ class AppInput(Input):
         self._show_keyboard()
 
     def _show_keyboard(self) -> None:
-        """Explicitly call termux-keyboard-show"""
+        """Explicitly call termux-keyboard-show with DEBUG info"""
         try:
             import subprocess
+            import os
+            import shutil
             
-            # Helper to run command safely
-            def run_cmd(args):
-                subprocess.Popen(args, 
-                               stdout=subprocess.DEVNULL, 
-                               stderr=subprocess.DEVNULL)
+            cmd_short = "termux-keyboard-show"
+            cmd_abs = "/data/data/com.termux/files/usr/bin/termux-keyboard-show"
+            
+            # 1. Try Absolute Path
+            if os.path.exists(cmd_abs):
+                try:
+                    subprocess.Popen([cmd_abs], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return
+                except Exception as e:
+                    if self.app: self.app.notify(f"Abs Run Error: {e}", severity="error")
 
-            try:
-                # Try simple command first (relies on PATH)
-                run_cmd(["termux-keyboard-show"])
-                return
-            except FileNotFoundError:
-                pass
+            # 2. Try PATH
+            path_loc = shutil.which(cmd_short)
+            if path_loc:
+                try:
+                    subprocess.Popen([path_loc], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return
+                except Exception as e:
+                    if self.app: self.app.notify(f"PATH Run Error: {e}", severity="error")
 
-            try:
-                # Try absolute path fallback
-                run_cmd(["/data/data/com.termux/files/usr/bin/termux-keyboard-show"])
-                return
-            except FileNotFoundError:
-                pass
-
-            # If we get here, both failed
+            # 3. Debug Failure
+            exists_abs = os.path.exists(cmd_abs)
+            path_env = os.environ.get('PATH', 'No PATH')
+            
+            msg = f"API FAIL. AbsExists: {exists_abs}\nWhich: {path_loc}\nPATH len: {len(path_env)}"
             if self.app:
-                self.app.notify("Termux:API missing! Please install properly.", severity="warning", timeout=3.0)
+                self.app.notify(msg, severity="error", timeout=10.0)
 
-        except Exception:
-            pass
+        except Exception as e:
+            if self.app:
+                self.app.notify(f"Global Error: {e}", severity="error")
 
 class ArabicInput(AppInput):
     """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
