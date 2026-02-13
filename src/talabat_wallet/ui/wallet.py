@@ -31,7 +31,7 @@ class EditTransactionScreen(ModalScreen):
                 yield CustomButton(type_label, id="toggle-type", classes=type_class)
                 
                 yield ArabicInput(value=self.current_desc, placeholder="Description", id="edit-desc")
-                yield Input(value=str(self.current_amount), placeholder="Amount", id="edit-amount", type="number")
+                yield ArabicInput(value=str(self.current_amount), placeholder="Amount", id="edit-amount", min_value=0)
                 
                 with Horizontal(id="dialog-buttons"):
                     yield CustomButton("Save", id="save-edit", custom_width=12)

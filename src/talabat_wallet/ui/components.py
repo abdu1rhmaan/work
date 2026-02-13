@@ -258,7 +258,28 @@ class OptionSelector(Static):
         # إرسال رسالة بتغيير القيمة
         self.post_message(self.Selected(self, new_val))
 
-class ArabicInput(Input):
+class KeyboardAwareInput(Input):
+    """Input widget that ensures keyboard appears on Termux/Mobile"""
+    
+    def on_click(self) -> None:
+        """Force keyboard show on click"""
+        self._show_keyboard()
+        
+    def on_focus(self) -> None:
+        """Force keyboard show on focus"""
+        self._show_keyboard()
+        
+    def _show_keyboard(self) -> None:
+        try:
+            import subprocess
+            import platform
+            # Try both termux-keyboard methods just in case
+            if platform.system() == "Linux":
+                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
+        except Exception:
+            pass
+
+class ArabicInput(KeyboardAwareInput):
     """حقل إدخال يدعم اللغة العربية بشكل صحيح أثناء الكتابة مع محاذاة تلقائية"""
     
     def __init__(self, *args, required: bool = False, min_value: float = None, **kwargs):
@@ -342,29 +363,10 @@ class ArabicInput(Input):
         pass
         
     def on_focus(self) -> None:
-        """إزالة حالة الخطأ عند التركيز وطلب الكيبورد في ترمكس"""
+        """إزالة حالة الخطأ عند التركيز وطلب الكيبورد"""
         if self.has_class("invalid"):
             self.remove_class("invalid")
-            
-        # طلب إظهار الكيبورد في ترمكس (أندرويد) بشكل تلقائي
-        try:
-            import subprocess
-            import platform
-            if platform.system() == "Linux":
-                # فحص سريع لبيئة ترمكس
-                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
-        except Exception:
-            pass
-
-    def on_click(self) -> None:
-        """طلب الكيبورد عند النقر، حتى لو كان الحقل نشطاً بالفعل"""
-        try:
-            import subprocess
-            import platform
-            if platform.system() == "Linux":
-                subprocess.run(["termux-keyboard-show"], capture_output=True, check=False)
-        except Exception:
-            pass
+        super().on_focus()
 
 class ShiftTimerDisplay(Static):
     """عرض مؤقت الوردية"""

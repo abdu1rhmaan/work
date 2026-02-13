@@ -181,10 +181,10 @@ class BatchPricesScreen(ModalScreen):
                         yield Static(f"--- BATCH {batch_name} ---", classes="batch-header")
                         with Horizontal(classes="price-field"):
                             yield Static("Mart: ", classes="field-label")
-                            yield Input(value=str(prices['mart']), id=f"mart-{batch_name}", type="number", validate_on=["submitted", "blur"])
+                            yield ArabicInput(value=str(prices['mart']), id=f"mart-{batch_name}", min_value=0)
                         with Horizontal(classes="price-field"):
                             yield Static("Rest: ", classes="field-label")
-                            yield Input(value=str(prices['restaurant']), id=f"restaurant-{batch_name}", type="number", validate_on=["submitted", "blur"])
+                            yield ArabicInput(value=str(prices['restaurant']), id=f"restaurant-{batch_name}", min_value=0)
                 with Horizontal(id="prices-buttons"):
                     yield CustomButton("Save All", id="save-prices")
                     yield CustomButton("Back", id="back-prices")
