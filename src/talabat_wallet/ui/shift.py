@@ -13,6 +13,11 @@ class ShiftSummaryScreen(ModalScreen):
     def __init__(self, shift_summary):
         super().__init__()
         self.shift_summary = shift_summary
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""
@@ -98,6 +103,9 @@ class ShiftsHistoryScreen(ModalScreen):
         """عند تحميل الشاشة"""
         self.refresh_history() # تحديث فوري عند الفتح
         self.set_interval(2, self.refresh_history)
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def on_click(self, event) -> None:
         if event.widget == self:

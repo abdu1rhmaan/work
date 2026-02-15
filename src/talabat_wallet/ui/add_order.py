@@ -19,6 +19,20 @@ class AddOrderScreen(ModalScreen):
         self.batch_prices = self.db.get_batch_prices()
         self.current_batch = self.settings['batch']
         self.calculated_delivery_fee = 0.0
+
+    def on_mount(self) -> None:
+        # ✅ Aggressive focus clearing on entry
+        self.set_focus(None)
+        self.set_timer(0.01, lambda: self.set_focus(None))
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        self.set_timer(0.1, lambda: self.set_focus(None))
+        
+        # Original focus logic for amount
+        self.set_timer(0.2, lambda: self.query_one("#paid").focus())
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""

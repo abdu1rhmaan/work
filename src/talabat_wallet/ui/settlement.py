@@ -41,7 +41,15 @@ class ManualSettlementDialog(ModalScreen):
                 yield CustomButton("Cancel", id="back", custom_width=14)
 
     def on_mount(self) -> None:
-        self.amount_input.focus()
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+        # Keep intentional focus but with a slight delay
+        self.set_timer(0.2, lambda: self.amount_input.focus())
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def on_click(self, event: events.Click) -> None:
         if event.widget == self:
@@ -83,7 +91,7 @@ class SettlementScreen(ModalScreen):
         self.settings = self.db.get_settings()
         self.receive_mode = "NORMAL" # NORMAL or SALARY
         self.settlement_results = None
-        
+
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""
         with Container(id="settlement-dialog", classes="modal-dialog"):
@@ -145,9 +153,20 @@ class SettlementScreen(ModalScreen):
     
     def on_mount(self) -> None:
         """تهيئة الشاشة"""
-        self.amount_input.focus()
+        # ✅ Prevent auto-focus on Close button (Aggressive)
+        self.set_focus(None)
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        self.set_timer(0.1, lambda: self.set_focus(None))
+        
+        # Focus input after a slight delay to avoid the initial focus flash
+        self.set_timer(0.2, lambda: self.amount_input.focus())
+        
         self.update_ui_state()
         self.update_preview()
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
     
     def update_ui_state(self) -> None:
         """تحديث ظهور العناصر بناء على الاختيارات"""

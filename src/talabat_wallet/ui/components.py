@@ -27,6 +27,11 @@ class CustomButton(Button):
         # باستخدام content-align: center middle في TCSS
         return formatted_label
 
+    def on_click(self) -> None:
+        """إزالة التركيز عن الزر بعد الضغط مباشرة"""
+        if self.screen:
+            self.screen.set_focus(None)
+
 class WalletDisplay(Static):
     """عرض المحفظة"""
     

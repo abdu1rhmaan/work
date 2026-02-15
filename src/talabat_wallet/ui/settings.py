@@ -15,6 +15,16 @@ class SettingsScreen(ModalScreen):
         self.callback = callback
         self.settings = self.db.get_settings()
         self.batch_prices = self.db.get_batch_prices()
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        """عند استعادة الشاشة"""
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""
@@ -120,6 +130,16 @@ class DatabaseSettingsScreen(ModalScreen):
         super().__init__()
         self.db = db
         self.callback = callback
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        """عند استعادة الشاشة"""
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         with Container(id="db-mgmt-dialog", classes="modal-dialog small-modal"):
@@ -154,6 +174,11 @@ class ConfirmResetScreen(ModalScreen):
         super().__init__()
         self.db = db
         self.callback = callback
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
             with Horizontal(id="details-header"):
@@ -189,13 +214,25 @@ class BatchPricesScreen(ModalScreen):
         self.batch_prices = self.db.get_batch_prices()
 
     def on_mount(self) -> None:
-        """Autofocus first input"""
+        """Clear auto-focus from Close button first, then focus first input"""
+        self.set_focus(None)
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        
         try:
-            # Try to focus the first mart input of the first batch
+            # Try to focus the first mart input of the first batch with a delay
             first_batch = next(iter(self.batch_prices.keys()))
-            self.query_one(f"#mart-{first_batch}").focus()
+            def focus_input():
+                try:
+                    self.query_one(f"#mart-{first_batch}").focus()
+                except:
+                    pass
+            self.set_timer(0.15, focus_input)
         except Exception:
             pass
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
     def compose(self) -> ComposeResult:
         with Container(id="prices-dialog", classes="modal-dialog"):
             with Horizontal(id="details-header"):

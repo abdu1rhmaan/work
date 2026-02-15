@@ -1268,16 +1268,15 @@ class Database:
         except Exception:
             return False, "Database error"
 
-    def check_auto_updates(self) -> Optional[Dict[str, Any]]:
-        """التحقق من التحديثات التلقائية (انتهاء الوردية، الغياب)"""
+    def check_auto_updates(self) -> Dict[str, Any]:
+        """التحقق من التحديثات التلقائية (انتهاء الوردية، الغياب، انتهاء الاستراحة)"""
         try:
+            results = {'ended_shift': None, 'break_ended': False}
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 now = datetime.now()
                 now_str = now.strftime("%Y-%m-%d %H:%M:%S")
-                
-                ended_shift_summary = None
                 
                 # 1. إنهاء الورديات النشطة التي تجاوزت موعد الانتهاء
                 cursor.execute("SELECT * FROM shifts WHERE status = 'ACTIVE'")
@@ -1285,6 +1284,14 @@ class Database:
                 
                 for shift in active_shifts:
                     try:
+                        # 0. التحقق من انتهاء البريك تلقائياً إذا وجد
+                        if shift.get('break_active') and shift.get('break_planned_duration'):
+                            start_time = datetime.strptime(shift['break_start'], "%Y-%m-%d %H:%M:%S")
+                            planned_secs = shift['break_planned_duration'] * 60
+                            if now >= (start_time + timedelta(seconds=planned_secs)):
+                                self.toggle_break(shift['id'])
+                                results['break_ended'] = True
+
                         # Reset to avoid leak
                         scheduled_end = None
                         
@@ -1317,7 +1324,7 @@ class Database:
                         grace_period_seconds = 7200
                         if now >= (scheduled_end + timedelta(seconds=grace_period_seconds)):
                             # إنهاء هذه الوردية تلقائياً
-                            ended_shift_summary = self.end_active_shift(shift['id'])
+                            results['ended_shift'] = self.end_active_shift(shift['id'])
                     except Exception as ex:
                         print(f"Error auto-ending shift {shift['id']}: {ex}")
 
@@ -1384,10 +1391,10 @@ class Database:
                     except Exception as ex:
                         print(f"Error checking absent status for shift {shift['id']}: {ex}")
                 conn.commit()
-                return ended_shift_summary
+                return results
         except Exception as e:
             print(f"Error in auto updates: {e}")
-            return None
+            return {'ended_shift': None, 'break_ended': False}
 
     def get_shift_stats(self, shift_id: int) -> Dict[str, Any]:
         """الحساب اللحظي لإحصائيات الوردية (عدد الطلبات، الدخل، الربح)"""

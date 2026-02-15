@@ -84,10 +84,25 @@ Button {
     min-height: 1;
 }
 
-CustomButton:focus {
-    background: $accent;
-    color: $text;
+CustomButton:focus, Button:focus, .option-button:focus {
+    /* Match normal state to eliminate auto-focus flash */
+    /* Explicit highlight only on hover */
     text-style: bold;
+}
+
+CustomButton:hover, Button:hover, .option-button:hover {
+    background: #0056ff !important;
+    color: white !important;
+}
+
+/* 🛡️ Block blue flash on Dashboard buttons when auto-focused */
+#main-buttons CustomButton:focus {
+    background: #1a1a1a;
+    color: white;
+}
+
+ListItem:hover {
+    background: #0045e6 30%;
 }
 
 #stats-container {
@@ -721,17 +736,6 @@ HistoryRow:focus {
     color: white;
 }
 
-#analysis-view {
-    height: 1fr;
-    min-height: 20;
-    margin-top: 1; /* التأكد من وجود مسافة فوق التحليل */
-    background: $surface;
-    color: $text;
-    border: round $primary;
-    padding: 0 1;
-    width: 100%;
-    content-align: center top;
-}
 
 #delivery-fee-display {
     background: $primary-darken-3;
@@ -868,8 +872,8 @@ HistoryRow:focus {
 }
 
 .nav-btn:hover {
-    background: $accent-darken-1;
-    border: tall $accent;
+    background: #0056ff;
+    border: tall #0045e6;
 }
 
 #days-header {
@@ -911,17 +915,17 @@ HistoryRow:focus {
 }
 
 .day-cell:hover {
-    background: $accent 30%;
+    background: #0045e6 30%;
     text-style: bold;
 }
 
 .day-cell.today {
-    background: $accent 15% !important;
-    border: tall $accent !important;
+    background: #0045e6 20% !important;
+    border: tall #0045e6 !important;
 }
 
 .day-cell.today-btn {
-    color: $accent !important;
+    color: #0045e6 !important;
     text-style: bold underline !important;
 }
 
@@ -983,21 +987,32 @@ HistoryRow:focus {
     content-align: left middle;
 }
 
-.close-icon-btn {
-    width: 4;
-    min-width: 4;
+/* Muted Maroon Close Button - Consistent across all screens */
+.close-button, .close-icon-btn {
+    width: 3;
+    min-width: 3;
     height: 1;
-    color: $text-muted;
-    background: transparent;
+    background: #8b0000;
+    color: white;
     border: none;
-    margin: 0;
+    text-style: bold;
+    content-align: center middle;
+    margin-right: 1;
     padding: 0;
-    min-width: 0;
 }
 
+.close-button:hover,
 .close-icon-btn:hover {
-    color: $error;
-    text-style: bold;
+    background: #d32f2f !important;
+    color: black !important;
+}
+
+/* 🛡️ Explicitly block blue flash on focus for Close buttons */
+.close-button:focus,
+.close-icon-btn:focus {
+    background: #8b0000 !important;
+    color: white !important;
+    outline: none;
 }
 
 .shift-item-btn {
@@ -1039,7 +1054,7 @@ HistoryRow:focus {
 #shift-status-header:hover {
     background: $primary-darken-2;
     text-style: bold underline;
-    color: $accent;
+    color: #00ffcc;
 }
 
 .shift-history-row {
@@ -1130,9 +1145,17 @@ HistoryRow:focus {
     text-style: bold;
 }
 
+#mode-buttons CustomButton:hover, #mode-selection CustomButton:hover {
+    background: #0056ff !important;
+}
+
+#mode-buttons CustomButton:focus, #mode-selection CustomButton:focus {
+    background: #0045e6 !important;
+}
+
 #confirmation-box {
     background: $surface-lighten-1;
-    border: dashed $accent;
+    border: dashed $primary;
     padding: 1;
     margin: 1 0;
     height: auto;
@@ -1156,7 +1179,7 @@ HistoryRow:focus {
     width: 100%;
     text-align: center;
     text-style: bold;
-    color: $accent;
+    color: $primary-lighten-2;
 }
 
 #manual-settlement-dialog {
@@ -1214,19 +1237,33 @@ HistoryRow:focus {
     color: $primary-lighten-2;
 }
 
-.close-button {
-    width: 3;
-    min-width: 3;
+
+
+
+/* Option Selector Styles */
+.option-selector {
     height: 1;
-    background: $error;
-    color: white;
-    border: none;
-    text-style: bold;
-    content-align: center middle;
-    margin-right: 1;
-    padding: 0;
+    margin-bottom: 1;
+    width: 100%;
 }
 
-.close-button:hover {
-    background: $error-lighten-1;
+.option-button {
+    width: 1fr;
+    height: 1;
+    background: $boost;
+    color: $text;
+    border: none;
+    content-align: center middle;
 }
+
+.option-button.active {
+    background: $primary;
+    color: white;
+    text-style: bold;
+}
+
+.option-button:focus {
+    background: #0045e6;
+    color: white;
+}
+

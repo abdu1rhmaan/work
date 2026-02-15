@@ -16,6 +16,11 @@ class OrderDetailsScreen(ModalScreen):
         self.display_id = display_id
         self.db = db
         self.refresh_callback = refresh_callback
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         with Container(id="order-details-dialog", classes="modal-dialog small-modal"):
@@ -62,6 +67,11 @@ class TipDetailsScreen(ModalScreen):
         super().__init__()
         self.order = order_data
         self.display_id = display_id
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         with Container(id="tip-details-dialog", classes="modal-dialog small-modal"):
@@ -103,7 +113,12 @@ class SettlementDetailsScreen(ModalScreen):
         super().__init__()
         self.order = order_data
         self.display_id = display_id
-        
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
     def compose(self) -> ComposeResult:
         with Container(id="settlement-details-dialog", classes="modal-dialog small-modal"):
             with Horizontal(id="details-header"):
@@ -215,6 +230,17 @@ class HistoryScreen(ModalScreen):
     def on_mount(self) -> None:
         """تهيئة الشاشة"""
         self.load_data()
+        # ✅ Aggressive focus suppression on entry
+        self.set_focus(None)
+        self.set_timer(0.01, lambda: self.set_focus(None))
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        self.set_timer(0.1, lambda: self.set_focus(None))
+        self.set_timer(0.2, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        """عند استعادة الشاشة"""
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def on_option_selector_selected(self, message: OptionSelector.Selected) -> None:
         """تحديث الفلاتر عند تغيير الخيارات"""
@@ -420,6 +446,11 @@ class HistoryScreen(ModalScreen):
                         yield CustomButton("Delete", id="ok", custom_width=12)
                         yield CustomButton("Cancel", id="cancel", custom_width=12)
             
+            def on_mount(self) -> None:
+                # ✅ Prevent auto-focus on Close button
+                self.set_focus(None)
+                self.set_timer(0.1, lambda: self.set_focus(None))
+            
             def on_click(self, event) -> None:
                 if event.widget == self:
                     self.dismiss()
@@ -445,6 +476,11 @@ class HistoryScreen(ModalScreen):
                     with Horizontal(id="dialog-buttons"):
                         yield CustomButton("OK", id="ok", custom_width=12)
                         yield CustomButton("Cancel", id="cancel", custom_width=12)
+            
+            def on_mount(self) -> None:
+                # ✅ Prevent auto-focus on Close button
+                self.set_focus(None)
+                self.set_timer(0.1, lambda: self.set_focus(None))
             
             def on_click(self, event) -> None:
                 if event.widget == self:

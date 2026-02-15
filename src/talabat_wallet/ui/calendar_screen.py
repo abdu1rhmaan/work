@@ -76,6 +76,13 @@ class CalendarScreen(ModalScreen):
 
     async def on_mount(self) -> None:
         await self.update_calendar()
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     async def update_calendar(self) -> None:
         """تحديث عرض التقويم"""
@@ -202,6 +209,13 @@ class DayShiftsDialog(ModalScreen):
 
     async def on_mount(self) -> None:
         self.refresh_shifts()
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def on_click(self, event) -> None:
         if event.widget == self:
@@ -282,6 +296,15 @@ class AddShiftDialog(ModalScreen):
         self.db = db
         self.date_str = date_str
         self.on_success = on_success
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
         
     def compose(self) -> ComposeResult:
         from textual.widgets import Input
@@ -369,6 +392,13 @@ class ShiftDetailsDialog(ModalScreen):
 
     async def on_mount(self) -> None:
         self.refresh_ui()
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def refresh_ui(self) -> None:
         """تحديث بيانات الواجهة لحظياً"""
@@ -444,6 +474,13 @@ class BreakDialog(ModalScreen):
     async def on_mount(self) -> None:
         """مراقبة حالة الوردية لإغلاق النافذة إذا انتهت"""
         self.set_interval(1, self.check_shift_active)
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def check_shift_active(self) -> None:
         """إغلاق النافذة تلقائياً إذا انتهت الوردية النشطة"""

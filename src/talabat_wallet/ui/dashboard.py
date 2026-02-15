@@ -76,15 +76,33 @@ class DashboardScreen(Screen):
         self.update_shift_status()
         self.set_interval(1, self.update_shift_status) # Update status every second for timer
         self.set_interval(60, self.db.check_auto_updates) # Periodic check every minute
+
+        # ✅ REMOVE START-UP FOCUS (Aggressive suppression)
+        # Clear focal point immediately and with multiple delays to ensure no blue flash
+        self.set_focus(None)
+        self.set_timer(0.01, lambda: self.set_focus(None))
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        self.set_timer(0.1, lambda: self.set_focus(None))
+        self.set_timer(0.2, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        """عند استئناف الشاشة، نتأكد من إزالة التركيز تلقائياً"""
+        self.set_focus(None)
+        self.set_timer(0.05, lambda: self.set_focus(None))
+        self.set_timer(0.1, lambda: self.set_focus(None))
     
     def update_shift_status(self) -> None:
         """تحديث نص حالة الوردية والمؤقت في الهيدر"""
-        # التحقق من التحديثات التلقائية (انتهاء الوردية تلقائياً)
-        ended_summary = self.db.check_auto_updates()
-        if ended_summary:
+        # التحقق من التحديثات التلقائية (انتهاء الوردية، انتهاء البريك)
+        updates = self.db.check_auto_updates()
+        
+        if updates.get('ended_shift'):
             from .shift import ShiftSummaryScreen
-            self.app.push_screen(ShiftSummaryScreen(ended_summary))
+            self.app.push_screen(ShiftSummaryScreen(updates['ended_shift']))
             self.notify("🏁 Shift finished automatically!", severity="information")
+            
+        if updates.get('break_ended'):
+            self.notify("☕ Break ended automatically! Back to work.", severity="information")
         
         status_widget = self.query_one("#shift-status-header")
         data = self.db.get_dashboard_status()

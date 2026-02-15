@@ -21,8 +21,13 @@ class EditTransactionScreen(ModalScreen):
         self.txn_type = current_type
 
     def on_mount(self) -> None:
-        """Autofocus first input"""
-        self.query_one("#edit-desc").focus()
+        """Clear focus to prevent auto-highlighting the Close button"""
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def compose(self) -> ComposeResult:
         with Container(id="expense-form", classes="modal-dialog small-modal"):
@@ -114,6 +119,20 @@ class ConfirmDeleteScreen(ModalScreen):
         self.txn_id = txn_id
         self.callback = callback
 
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
             with Horizontal(id="details-header"):
@@ -149,6 +168,15 @@ class TransactionDetailsScreen(ModalScreen):
         self.txn = txn
         self.callback = callback
         self.txn_id = txn['id']
+
+    def on_mount(self) -> None:
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def compose(self) -> ComposeResult:
         txn_class = "txn-details-in" if self.txn['type'] == 'IN' else "txn-details-out"
@@ -280,6 +308,13 @@ class WalletScreen(ModalScreen):
 
     def on_mount(self) -> None:
         self.load_data()
+        # ✅ Prevent auto-focus on Close button
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
+
+    def on_show(self) -> None:
+        self.set_focus(None)
+        self.set_timer(0.1, lambda: self.set_focus(None))
 
     def load_data(self) -> None:
         """تحميل المصاريف السابقة والإحصائيات"""
