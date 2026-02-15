@@ -321,7 +321,7 @@ class HistoryScreen(ModalScreen):
         # تحديث العرض
         self.analysis_view.update(table)
         # تحديث تسمية الزر
-        self.query_one("#period-toggle").label = f"[ PERIOD: {self.current_period} ]"
+        self.query_one("#period-toggle").label = f"PERIOD: {self.current_period}"
             
     def on_history_row_toggle_selection(self, message: HistoryRow.ToggleSelection) -> None:
         """عند الضغط على المربع (الزر الحقيقي)"""

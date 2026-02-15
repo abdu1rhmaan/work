@@ -110,10 +110,10 @@ ModalScreen {
 }
 
 .modal-dialog {
-    width: 90%;
+    width: 85%;
     max-width: 120;
     height: auto;
-    max-height: 90%;
+    max-height: 85%;
     background: $surface;
     border: thick $primary;
     padding: 1 2;
@@ -128,10 +128,10 @@ ModalScreen {
 }
 
 #settings-dialog {
-    width: 90%;
+    width: 85%;
     max-width: 60;
     height: auto;
-    max-height: 90%;
+    max-height: 85%;
 }
 
 #settings-button-grid {
@@ -190,9 +190,9 @@ ModalScreen {
 
 #shifts-history-dialog {
     height: auto !important;
-    max-height: 90%;
-    width: 95%;
-    max-width: 100;
+    max-height: 80%;
+    width: 85%;
+    max-width: 90;
     layout: vertical;
     padding: 1 2;
     overflow-y: auto;
@@ -304,9 +304,10 @@ ModalScreen {
 }
 
 .analysis-modal {
-    width: 95%;
+    width: 85%;
+    max-width: 90;
     height: auto;
-    max-height: 90%;
+    max-height: 80%;
     border: thick $primary;
 }
 
@@ -358,9 +359,10 @@ TimePickerWidget {
 }
 
 #history-dialog-main.analysis-modal {
-    width: 95% !important;
+    width: 85% !important;
+    max-width: 90;
     height: auto !important;
-    max-height: 90%;
+    max-height: 80%;
     layout: vertical;
 }
 
@@ -377,10 +379,10 @@ TimePickerWidget {
 }
 
 #add-order-dialog, #settlement-dialog, #db-mgmt-dialog, #order-details-dialog, #settlement-details-dialog, #wallet-dialog {
-    width: 90%;
+    width: 85%;
     max-width: 80;
     height: auto;
-    max-height: 95%;
+    max-height: 85%;
     background: $surface;
     border: thick $primary;
     padding: 1 2;
@@ -451,9 +453,10 @@ TimePickerWidget {
     background: $error;
 }
 
-#history-dialog, #settings-dialog, #prices-dialog {
-    width: 90%;
-    height: 90%;
+#history-dialog-main, #settings-dialog, #prices-dialog {
+    width: 85%;
+    height: 85%;
+    max-width: 100;
 }
 
 #history-content, #settings-content, #prices-content, #settlement-content {
