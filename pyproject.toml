@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "talabat-driver-wallet"
+name = "work"
 version = "1.0.0"
 description = "Professional TUI accounting system for delivery drivers"
 authors = [{name = "Talabat Driver"}]
