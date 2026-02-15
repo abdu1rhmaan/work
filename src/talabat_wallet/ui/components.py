@@ -19,78 +19,13 @@ class CustomButton(Button):
         self.custom_width = custom_width
     
     def render(self) -> str:
-        """رسم الزر بسمك عمودي حقيقي باستخدام خطوط طرفية متعددة"""
+        """إرجاع النص المنسق فقط. يتم التحكم في المحاذاة والارتفاع عبر CSS"""
         label = self.label.plain
         formatted_label = format_arabic(label)
         
-        # استخدام الحد الأدنى بين العرض المخصص والعرض المفضل
-        # هذا يضمن أن الأزرار لا تتجاوز حدود الحاوية (على الشاشات العادية)
-        # وفي نفس الوقت تتقلص على الشاشات الضيقة (مثل Termux)
-        if self.size.width > 0:
-            width = min(self.size.width, self.custom_width)
-        else:
-            width = self.custom_width
-        
-        # قص النص إذا كان طويلاً جداً
-        if len(formatted_label) > width:
-            formatted_label = formatted_label[:width-3] + "..."
-        
-        # حساب الحشو الأفقي
-        h_padding = (width - len(formatted_label)) // 2
-        left_pad = " " * h_padding
-        right_pad = " " * (width - len(formatted_label) - h_padding)
-        
-        # السطر النصي الأساسي
-        text_line = f"{left_pad}{formatted_label}{right_pad}"
-        
-        # الحصول على الارتفاع من CSS styles
-        # نستخدم قيمة محسوبة أو قيمة افتراضية معقولة
-        try:
-            height_style = self.styles.height
-            if height_style is not None and hasattr(height_style, 'value'):
-                # إذا كان الارتفاع معرفاً في CSS
-                if hasattr(height_style, 'unit') and height_style.unit == 'cells':
-                    height = int(height_style.value)
-                else:
-                    # fallback للقيم العددية المباشرة
-                    height = int(float(height_style.value))
-            else:
-                # fallback إلى size.height إذا كان معقولاً
-                height = self.size.height if self.size.height >= 2 else 1
-        except (ValueError, TypeError, AttributeError):
-            # في حالة الخطأ، نستخدم القيمة الافتراضية
-            height = 1
-        
-        # إذا كان الارتفاع أقل من 2، نستخدم الرسم العادي (سطر واحد)
-        if height < 2:
-            content = text_line
-        else:
-            # بناء الزر بسمك عمودي حقيقي (2-3 خطوط كحد أقصى للمain buttons)
-            # نحد الارتفاع الأقصى لتجنب الإفراط في الحجم
-            max_height = min(height, 3)  # أقصى ارتفاع 3 خطوط
-            lines = []
-            empty_line = " " * width
-            # وضع النص في المنتصف عمودياً
-            text_line_index = max_height // 2
-            
-            for row in range(max_height):
-                if row == text_line_index:
-                    lines.append(text_line)
-                else:
-                    lines.append(empty_line)
-            
-            content = "\n".join(lines)
-            
-        # تطبيق حالة التركيز
-        if self.has_focus:
-            # عند التركيز، نطبق الـ reverse على كل سطر
-            if "\n" in content:
-                focused_lines = [f"[reverse]{line}[/]" for line in content.split("\n")]
-                return "\n".join(focused_lines)
-            else:
-                return f"[reverse]{content}[/]"
-        else:
-            return content
+        # نترك نظام المحاذاة في Textual يتعامل مع التوسيط والقص
+        # باستخدام content-align: center middle في TCSS
+        return formatted_label
 
 class WalletDisplay(Static):
     """عرض المحفظة"""

@@ -276,10 +276,10 @@ ModalScreen {
 }
 
 #dialog-buttons {
+    layout: horizontal;
     height: auto;
     align: center middle;
-    margin-top: 0; 
-    padding-bottom: 0;
+    margin-top: 0;
 }
 
 .close-icon-btn {
@@ -385,7 +385,8 @@ TimePickerWidget {
     max-height: 85%;
     background: $surface;
     border: thick $primary;
-    padding: 1 2;
+    padding: 1;
+    overflow: hidden;
     overflow-y: auto;
 }
 
@@ -554,8 +555,10 @@ Input, Select {
 #history-buttons CustomButton, 
 #chart-buttons CustomButton {
     width: 1fr;
+    min-width: 0;
     height: 1;
     margin: 0 1;
+    content-align: center middle;
 }
 
 .mgmt-group {
@@ -1114,9 +1117,11 @@ HistoryRow:focus {
 
 #mode-buttons CustomButton {
     width: 1fr;
+    min-width: 0;
     height: 1;
     background: $surface-lighten-1;
     border: none;
+    content-align: center middle;
 }
 
 #mode-buttons CustomButton.active {
@@ -1181,8 +1186,10 @@ HistoryRow:focus {
 
 #mode-selection CustomButton {
     width: 1fr;
+    min-width: 0;
     height: 1;
     background: $boost;
+    content-align: center middle;
 }
 
 #mode-selection CustomButton.active {
