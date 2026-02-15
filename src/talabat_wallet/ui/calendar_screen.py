@@ -54,10 +54,9 @@ class CalendarScreen(ModalScreen):
         
     def compose(self) -> ComposeResult:
         with Container(id="calendar-container", classes="modal-dialog"):
-            # Header with Title and X button
-            with Horizontal(classes="dialog-header"):
-                yield Static("Shift Calendar", classes="dialog-title-text")
-                yield Button("✕", id="close-calendar-btn", classes="close-icon-btn")
+            with Horizontal(id="details-header"):
+                yield Static("Shift Calendar", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             # Navigation Bar
             with Horizontal(id="calendar-nav"):
@@ -136,7 +135,7 @@ class CalendarScreen(ModalScreen):
                 self.year += 1
             await self.update_calendar()
             
-        elif btn_id == "close-calendar-btn":
+        elif btn_id in ["close-calendar-btn", "close-x"]:
             self.dismiss()
 
     async def on_calendar_day_button_selected(self, message: "CalendarDayButton.Selected") -> None:
@@ -175,8 +174,7 @@ class DayShiftsDialog(ModalScreen):
         
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
-            # Header with Title and X button
-            with Horizontal(classes="dialog-header"):
+            with Horizontal(id="details-header"):
                 # Format date for title
                 try:
                     dt = datetime.strptime(self.date_str, "%Y-%m-%d")
@@ -184,8 +182,8 @@ class DayShiftsDialog(ModalScreen):
                 except:
                     title_date = self.date_str
                     
-                yield Static(f"Shifts: {title_date}", classes="dialog-title-text")
-                yield Button("✕", id="close-x-btn", classes="close-icon-btn")
+                yield Static(f"Shifts: {title_date}", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
 
             with Vertical(id="shifts-list"):
                 # Loaded in on_mount
@@ -210,7 +208,7 @@ class DayShiftsDialog(ModalScreen):
             self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close-x-btn":
+        if event.button.id in ["close-x", "close-x-btn"]:
             if self.on_close_callback:
                 try:
                     await self.on_close_callback()
@@ -288,9 +286,9 @@ class AddShiftDialog(ModalScreen):
     def compose(self) -> ComposeResult:
         from textual.widgets import Input
         with Container(classes="modal-dialog small-modal"):
-            with Horizontal(classes="dialog-header"):
-                yield Static("Add New Shift", classes="dialog-title-text")
-                yield Button("✕", id="close-x-btn", classes="close-icon-btn")
+            with Horizontal(id="details-header"):
+                yield Static("Add New Shift", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(classes="dialog-body"):
                 # Calculate dynamic defaults
@@ -316,7 +314,7 @@ class AddShiftDialog(ModalScreen):
             self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close-x-btn":
+        if event.button.id in ["close-x-btn", "close-x"]:
             self.dismiss()
         elif event.button.id == "save-btn":
             start_time = self.query_one("#start-picker").value
@@ -328,12 +326,23 @@ class AddShiftDialog(ModalScreen):
                 self.query_one("#error-msg").update("Invalid Time Format! (e.g. 10:00 PM)")
                 return
                 
-            if self.db.add_scheduled_shift(self.date_str, start_time, end_time):
+            success, final_date, err_msg = self.db.add_scheduled_shift(self.date_str, start_time, end_time)
+            
+            if success:
+                if final_date != self.date_str:
+                    from datetime import datetime
+                    try:
+                        f_dt = datetime.strptime(final_date, "%Y-%m-%d").strftime("%d %b")
+                        self.notify(f"📅 Shift moved to tomorrow ({f_dt}) to avoid ABSENT status!", severity="warning")
+                    except:
+                        self.notify("📅 Shift moved to tomorrow!")
+                
                 if self.on_success:
                     self.on_success()
                 self.dismiss()
             else:
-                self.query_one("#error-msg").update("Failed to add shift (Database Error)")
+                translated_err = "Overlap with another shift!" if "Overlap" in err_msg else "Database Error"
+                self.query_one("#error-msg").update(translated_err)
 
 
 class ShiftDetailsDialog(ModalScreen):
@@ -347,9 +356,9 @@ class ShiftDetailsDialog(ModalScreen):
         
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
-            with Horizontal(classes="dialog-header"):
-                yield Static("Shift Details", classes="dialog-title-text")
-                yield Button("✕", id="close-x-btn", classes="close-icon-btn")
+            with Horizontal(id="details-header"):
+                yield Static("Shift Details", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(classes="dialog-body"):
                 yield Static(id="shift-info-display", classes="shift-info-summary")
@@ -394,7 +403,7 @@ class ShiftDetailsDialog(ModalScreen):
             self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close-x-btn":
+        if event.button.id in ["close-x-btn", "close-x"]:
             self.dismiss()
             
         elif event.button.id == "delete-shift-btn":
@@ -444,9 +453,9 @@ class BreakDialog(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
-             with Horizontal(classes="dialog-header"):
-                 yield Static("Select Break Duration", classes="dialog-title-text")
-                 yield Button("✕", id="close-x-btn", classes="close-icon-btn")
+             with Horizontal(id="details-header"):
+                 yield Static("Select Break Duration", id="details-title")
+                 yield Button("X", id="close-x", classes="close-button")
                  
              with Vertical(classes="break-options"):
                  # قائمة عمودية بسيطة لضمان ظهور جميع الأزرار
@@ -463,7 +472,7 @@ class BreakDialog(ModalScreen):
             self.dismiss()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close-x-btn":
+        if event.button.id in ["close-x-btn", "close-x"]:
             self.dismiss()
             return
             

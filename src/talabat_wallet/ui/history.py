@@ -158,20 +158,24 @@ class HistoryScreen(ModalScreen):
             
         with Container(id="history-dialog-main", classes=container_classes):
             if self.show_chart_only:
-                yield Static("PROFIT ANALYSIS", id="title")
+                with Horizontal(id="details-header"):
+                    yield Static("PROFIT ANALYSIS", id="details-title")
+                    yield Button("X", id="close-x", classes="close-button")
                 with Vertical(id="history-content"):
                     # زر التبديل بين الفترات
                     with Horizontal(id="period-buttons"):
-                        yield CustomButton(f"[ PERIOD: {self.current_period} ]", id="period-toggle", custom_width=30)
+                        yield CustomButton(f"PERIOD: {self.current_period}", id="period-toggle", custom_width=20)
                     
                     # حاوية عرض البيانات النصية
                     self.analysis_view = Static(id="analysis-view")
                     yield self.analysis_view
                     
                     with Horizontal(id="dialog-buttons"):
-                        yield CustomButton("Back", id="back-chart", custom_width=16)
+                        yield CustomButton("Back", id="back-chart", custom_width=12)
             else:
-                yield Static("ORDER HISTORY", id="title")
+                with Horizontal(id="details-header"):
+                    yield Static("ORDER HISTORY", id="details-title")
+                    yield Button("X", id="close-x", classes="close-button")
                 
                 with Vertical(id="filter-section"):
                     type_options = [
@@ -201,8 +205,8 @@ class HistoryScreen(ModalScreen):
                     yield self.history_list
                     
                     with Horizontal(id="dialog-buttons"):
-                        yield CustomButton("Delete Selected", id="delete-order")
-                        yield CustomButton("Close", id="back")
+                        yield CustomButton("Delete", id="delete-order", custom_width=12)
+                        yield CustomButton("Close", id="back", custom_width=12)
 
     def on_click(self, event) -> None:
         if event.widget == self:
@@ -367,9 +371,9 @@ class HistoryScreen(ModalScreen):
         btn = self.query_one("#delete-order")
         count = len(self.selected_ids)
         if count > 0:
-            btn.label = f"Delete Selected ({count})"
+            btn.label = f"Delete ({count})"
         else:
-            btn.label = "Delete Selected"
+            btn.label = "Delete"
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
@@ -381,7 +385,7 @@ class HistoryScreen(ModalScreen):
             self.load_data()
         elif button_id == "delete-order":
             await self.delete_selected_orders()
-        elif button_id in ["back", "back-chart"]:
+        elif button_id in ["back", "back-chart", "close-x"]:
             self.dismiss()
     
     async def delete_selected_orders(self) -> None:
@@ -409,10 +413,12 @@ class HistoryScreen(ModalScreen):
         class ConfirmDialog(ModalScreen):
             def compose(self):
                 with Container(classes="modal-dialog small-modal"):
-                    yield Static(title)
+                    with Horizontal(id="details-header"):
+                        yield Static(title, id="details-title")
+                        yield Button("X", id="close-x", classes="close-button")
                     with Horizontal(id="dialog-buttons"):
-                        yield CustomButton("Delete", id="ok")
-                        yield CustomButton("Cancel", id="cancel")
+                        yield CustomButton("Delete", id="ok", custom_width=12)
+                        yield CustomButton("Cancel", id="cancel", custom_width=12)
             
             def on_click(self, event) -> None:
                 if event.widget == self:
@@ -421,6 +427,8 @@ class HistoryScreen(ModalScreen):
             async def on_button_pressed(self, event):
                 if event.button.id == "ok":
                     await callback()
+                elif event.button.id in ["cancel", "close-x"]:
+                    self.dismiss()
                 self.dismiss()
         return ConfirmDialog()
     
@@ -430,11 +438,13 @@ class HistoryScreen(ModalScreen):
         class InputDialog(ModalScreen):
             def compose(self):
                 with Container(classes="modal-dialog small-modal"):
-                    yield Static(title)
+                    with Horizontal(id="details-header"):
+                        yield Static(title, id="details-title")
+                        yield Button("X", id="close-x", classes="close-button")
                     yield input_widget
                     with Horizontal(id="dialog-buttons"):
-                        yield CustomButton("OK", id="ok")
-                        yield CustomButton("Cancel", id="cancel")
+                        yield CustomButton("OK", id="ok", custom_width=12)
+                        yield CustomButton("Cancel", id="cancel", custom_width=12)
             
             def on_click(self, event) -> None:
                 if event.widget == self:
@@ -443,6 +453,8 @@ class HistoryScreen(ModalScreen):
             async def on_button_pressed(self, event):
                 if event.button.id == "ok":
                     await callback()
+                    self.dismiss()
+                elif event.button.id in ["cancel", "close-x"]:
                     self.dismiss()
                 else:
                     self.dismiss()

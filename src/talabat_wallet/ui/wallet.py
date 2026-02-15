@@ -26,7 +26,9 @@ class EditTransactionScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(id="expense-form", classes="modal-dialog small-modal"):
-            yield Static("EDIT TRANSACTION", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("EDIT TRANSACTION", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="edit-content"):
                 # نوع العملية (زر تبديل)
@@ -60,7 +62,7 @@ class EditTransactionScreen(ModalScreen):
                 
         elif event.button.id == "save-edit":
             await self.save_changes()
-        elif event.button.id == "cancel-edit":
+        elif event.button.id in ["cancel-edit", "close-x"]:
             self.dismiss()
 
     async def save_changes(self) -> None:
@@ -114,12 +116,14 @@ class ConfirmDeleteScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
-            yield Static("DELETE TRANSACTION?", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("DELETE TRANSACTION?", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             yield Static("\nAre you sure you want to delete this transaction?\n", classes="warning-text")
             
             with Horizontal(id="dialog-buttons"):
-                yield CustomButton("YES, DELETE", id="confirm-delete", classes="button-out", custom_width=16)
-                yield CustomButton("CANCEL", id="cancel-delete", custom_width=12)
+                yield CustomButton("YES", id="confirm-delete", classes="button-out", custom_width=14)
+                yield CustomButton("NO", id="cancel-delete", custom_width=12)
 
     def on_click(self, event) -> None:
         if event.widget == self:
@@ -134,7 +138,7 @@ class ConfirmDeleteScreen(ModalScreen):
             else:
                 self.notify("Failed to delete", severity="error")
                 self.dismiss()
-        elif event.button.id == "cancel-delete":
+        elif event.button.id in ["cancel-delete", "close-x"]:
             self.dismiss()
 
 class TransactionDetailsScreen(ModalScreen):
@@ -149,7 +153,9 @@ class TransactionDetailsScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         txn_class = "txn-details-in" if self.txn['type'] == 'IN' else "txn-details-out"
         with Container(id="txn-details-dialog", classes=f"modal-dialog {txn_class}"):
-            yield Static("TRANSACTION DETAILS", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("TRANSACTION DETAILS", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="txn-details-content"):
                 yield Label(f"Date: {self.txn['datetime']}")
@@ -164,7 +170,7 @@ class TransactionDetailsScreen(ModalScreen):
             # تم طلب: Edit, Delete, Close بجانب بعض
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("Edit", id="edit-txn", custom_width=12)
-                yield CustomButton("Delete", id="delete-txn", custom_width=12)
+                yield CustomButton("Delete", id="delete-txn", classes="button-out", custom_width=12)
                 yield CustomButton("Close", id="close-txn-details", custom_width=12)
 
     def on_click(self, event) -> None:
@@ -172,7 +178,7 @@ class TransactionDetailsScreen(ModalScreen):
             self.dismiss()
 
     async def on_button_pressed(self, event: CustomButton.Pressed) -> None:
-        if event.button.id == "close-txn-details":
+        if event.button.id in ["close-txn-details", "close-x"]:
             self.dismiss()
         elif event.button.id == "delete-txn":
             # إغلاق هذه الشاشة وفتح تأكيد الحذف
@@ -223,7 +229,9 @@ class WalletScreen(ModalScreen):
         settings = self.db.get_settings()
         
         with Container(id="wallet-dialog", classes="modal-dialog"):
-            yield Static("WALLET & PERSONAL ACCOUNTING", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("WALLET & PERSONAL ACCOUNTING", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="wallet-content"):
                 # ملخص سريع للحساب الشخصي
@@ -257,7 +265,7 @@ class WalletScreen(ModalScreen):
                 yield self.expense_list
                 
                 with Horizontal(id="dialog-buttons"):
-                    yield CustomButton("Back", id="back", custom_width=12)
+                    yield CustomButton("Close", id="back", custom_width=14)
             
             # حاوية الاقتراحات - عائمة في طبقة منفصلة
             self.suggestions_list = OptionList(id="suggestion-list")
@@ -384,7 +392,7 @@ class WalletScreen(ModalScreen):
             except ValueError:
                 self.app.notify("Invalid amount", severity="error")
                 
-        elif button_id == "back":
+        elif button_id in ["back", "close-x"]:
             if self.on_close:
                 self.on_close()
             self.dismiss()

@@ -27,9 +27,9 @@ class AddOrderScreen(ModalScreen):
         
         with Container(id="add-order-dialog", classes="modal-dialog"):
             # Header with Title and X button
-            with Horizontal(classes="dialog-header"):
-                yield Static(title_text, classes="dialog-title-text")
-                yield Button("✕", id="cancel", classes="close-icon-btn")
+            with Horizontal(id="details-header"):
+                yield Static(title_text, id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="form-container"):
                 # نوع الطلب
@@ -222,7 +222,7 @@ class AddOrderScreen(ModalScreen):
         """معالجة ضغط الأزرار"""
         if event.button.id == "submit":
             await self.submit_order()
-        elif event.button.id == "cancel":
+        elif event.button.id in ["cancel", "close-x"]:
             self.dismiss()
     
     async def submit_order(self) -> None:

@@ -1101,3 +1101,122 @@ HistoryRow:focus {
     background: $error-darken-3 50%;
     color: $error-lighten-1;
 }
+
+/* Settlement Dual Modes & Confirmation */
+#mode-buttons {
+    height: 1;
+    margin-top: 0;
+    width: 100%;
+}
+
+#mode-buttons CustomButton {
+    width: 1fr;
+    height: 1;
+    background: $surface-lighten-1;
+    border: none;
+}
+
+#mode-buttons CustomButton.active {
+    background: $primary;
+    color: white;
+    text-style: bold;
+}
+
+#confirmation-box {
+    background: $surface-lighten-1;
+    border: dashed $accent;
+    padding: 1;
+    margin: 1 0;
+    height: auto;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#confirmation-box.hidden {
+    display: none;
+}
+
+#confirm-details {
+    width: 100%;
+    text-align: center;
+    color: $text-muted;
+}
+
+#confirm-result {
+    width: 100%;
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+}
+
+#manual-settlement-dialog {
+    width: 90%;
+    max-width: 50;
+    height: auto;
+    padding: 1 2;
+    layout: vertical;
+}
+
+#manual-settlement-dialog #dialog-buttons {
+    width: 100%;
+    height: 1;
+    margin-top: 1;
+}
+
+#manual-settlement-dialog #dialog-buttons CustomButton {
+    width: 1fr;
+    margin: 0 1;
+}
+
+#mode-selection {
+    height: 1;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#mode-selection CustomButton {
+    width: 1fr;
+    height: 1;
+    background: $boost;
+}
+
+#mode-selection CustomButton.active {
+    background: $primary;
+    color: white;
+    text-style: bold;
+}
+
+#details-header {
+    height: 3;
+    width: 100%;
+    background: $surface;
+    border-bottom: tall $primary;
+    margin-bottom: 1;
+    align: center middle;
+}
+
+#details-title {
+    width: 1fr;
+    content-align: center middle;
+    text-style: bold;
+    color: $primary-lighten-2;
+}
+
+.close-button {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    background: $error;
+    color: white;
+    border: none;
+    text-style: bold;
+    content-align: center middle;
+    margin-right: 1;
+    padding: 0;
+}
+
+.close-button:hover {
+    background: $error-lighten-1;
+}

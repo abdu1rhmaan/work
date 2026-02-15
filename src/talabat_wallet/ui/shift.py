@@ -17,7 +17,9 @@ class ShiftSummaryScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""
         with Container(id="shift-summary-dialog", classes="modal-dialog small-modal"):
-            yield Static("SHIFT SUMMARY", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("SHIFT SUMMARY", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="shift-summary-content"):
                 # حساب مدة الوردية
@@ -60,7 +62,7 @@ class ShiftSummaryScreen(ModalScreen):
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
-        if event.button.id == "close-shift-summary":
+        if event.button.id in ["close-summary", "close-x"]:
             self.dismiss()
     
     def on_key(self, event: events.Key) -> None:
@@ -80,9 +82,9 @@ class ShiftsHistoryScreen(ModalScreen):
         from textual.containers import ScrollableContainer, Vertical
         
         with Container(id="shifts-history-dialog", classes="modal-dialog"):
-            with Horizontal(classes="dialog-header"):
-                yield Static("SHIFTS HISTORY", classes="dialog-title-text")
-                yield Button("✕", id="close-x-btn", classes="close-icon-btn")
+            with Horizontal(id="details-header"):
+                yield Static("SHIFTS HISTORY", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="shifts-history-body"):
                 with ScrollableContainer(id="shifts-history-content"):
@@ -103,7 +105,7 @@ class ShiftsHistoryScreen(ModalScreen):
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """معالجة ضغط الأزرار"""
-        if event.button.id in ["close-history-btn", "close-x-btn"]:
+        if event.button.id in ["close-history-btn", "close-x-btn", "close-x"]:
             self.dismiss()
             
     async def on_shift_history_row_selected(self, event: "ShiftHistoryRow.Selected") -> None:

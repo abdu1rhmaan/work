@@ -4,7 +4,7 @@ from textual.containers import Container, Horizontal, Vertical, Grid
 from textual.widgets import Button, Static, Select
 from textual import events
 from ..database import Database
-from .components import CustomButton, OptionSelector
+from .components import CustomButton, OptionSelector, ArabicInput
 
 class SettingsScreen(ModalScreen):
     """شاشة الإعدادات كـ Popup"""
@@ -19,7 +19,9 @@ class SettingsScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         """بناء الواجهة"""
         with Container(id="settings-dialog", classes="modal-dialog"):
-            yield Static("SETTINGS", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("SETTINGS", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             
             with Vertical(id="settings-content"):
                 # وضع المحاسبة
@@ -65,7 +67,7 @@ class SettingsScreen(ModalScreen):
             await self.export_report()
         elif event.button.id == "database-mgmt":
             await self.app.push_screen(DatabaseSettingsScreen(self.db, self.callback))
-        elif event.button.id == "back":
+        elif event.button.id in ["back", "close-x"]:
             self.dismiss()
     
     async def export_report(self) -> None:
@@ -121,7 +123,9 @@ class DatabaseSettingsScreen(ModalScreen):
         
     def compose(self) -> ComposeResult:
         with Container(id="db-mgmt-dialog", classes="modal-dialog small-modal"):
-            yield Static("DATABASE MANAGEMENT", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("DATABASE MANAGEMENT", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             with Vertical(id="settings-content"):
                 yield Static("\nDatabase Tools\n", classes="section-header")
                 with Vertical(classes="mgmt-group"):
@@ -130,14 +134,18 @@ class DatabaseSettingsScreen(ModalScreen):
                 with Horizontal(id="dialog-buttons"):
                     yield CustomButton("Back", id="back")
 
-    def on_click(self, event) -> None:
+    def on_click(self, event: events.Click) -> None:
         if event.widget == self:
+            self.dismiss()
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "escape":
             self.dismiss()
                 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "reset-db":
             await self.app.push_screen(ConfirmResetScreen(self.db, self.callback))
-        elif event.button.id == "back":
+        elif event.button.id in ["back", "close-x"]:
             self.dismiss()
 
 class ConfirmResetScreen(ModalScreen):
@@ -148,23 +156,30 @@ class ConfirmResetScreen(ModalScreen):
         self.callback = callback
     def compose(self) -> ComposeResult:
         with Container(classes="modal-dialog small-modal"):
-            yield Static("RESET DATABASE?", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("RESET DATABASE?", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             yield Static("\nAre you SURE? This is permanent!\n", classes="warning-text")
             with Horizontal(id="dialog-buttons"):
                 yield CustomButton("YES", id="confirm")
                 yield CustomButton("NO", id="cancel")
     
-    def on_click(self, event) -> None:
+    def on_click(self, event: events.Click) -> None:
         if event.widget == self:
             self.dismiss()
 
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "confirm":
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id in ["cancel", "close-x"]:
+            self.dismiss()
+        elif event.button.id == "confirm":
             self.db.reset_database()
             if self.callback: self.callback()
             self.notify("Database Reset!", severity="warning")
             self.dismiss()
-        else: self.dismiss()
 
 class BatchPricesScreen(ModalScreen):
     """شاشة تحرير الأسعار كـ Popup"""
@@ -183,7 +198,9 @@ class BatchPricesScreen(ModalScreen):
             pass
     def compose(self) -> ComposeResult:
         with Container(id="prices-dialog", classes="modal-dialog"):
-            yield Static("BATCH PRICES EDITOR", id="title")
+            with Horizontal(id="details-header"):
+                yield Static("BATCH PRICES EDITOR", id="details-title")
+                yield Button("X", id="close-x", classes="close-button")
             with Vertical(id="prices-content"):
                 for batch_name, prices in self.batch_prices.items():
                     with Vertical(classes="batch-group"):
@@ -195,8 +212,8 @@ class BatchPricesScreen(ModalScreen):
                             yield Static("Rest: ", classes="field-label")
                             yield ArabicInput(value=str(prices['restaurant']), id=f"restaurant-{batch_name}", min_value=0)
                 with Horizontal(id="prices-buttons"):
-                    yield CustomButton("Save All", id="save-prices")
-                    yield CustomButton("Back", id="back-prices")
+                    yield CustomButton("Save All", id="save-prices", custom_width=14)
+                    yield CustomButton("Back", id="back-prices", custom_width=12)
     
     def on_click(self, event) -> None:
         if event.widget == self:
@@ -205,7 +222,7 @@ class BatchPricesScreen(ModalScreen):
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save-prices":
             await self.save_all_prices()
-        elif event.button.id == "back-prices":
+        elif event.button.id in ["back-prices", "close-x"]:
             self.dismiss()
     async def save_all_prices(self) -> None:
         has_error = False

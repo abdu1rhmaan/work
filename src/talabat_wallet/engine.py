@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Dict, Any
 from .models import ModeType, OrderType, Order
 
 class AccountingEngine:
@@ -124,3 +124,34 @@ class AccountingEngine:
             return False, "رسوم التوصيل لا يمكن أن تكون سالبة"
         
         return True, ""
+
+    @staticmethod
+    def calculate_salary_settlement(salary_received: float, company_balance: float) -> Dict[str, Any]:
+        """
+        حساب تسوية الراتب وصافي الحركة المطلوبة
+        """
+        if company_balance > salary_received:
+            # السائق مديون للشركة بأكثر من قبضه -> لازم يدفع الفرق
+            diff = company_balance - salary_received
+            result_text = f"You must PAY {diff:.2f} from pocket"
+            status = "PAY_DIFF"
+            personal_effect = -diff
+        elif salary_received > company_balance:
+            # السائق قبض أكثر مما عليه للشركة -> ياخد الفرق كاش
+            diff = salary_received - company_balance
+            result_text = f"You will RECEIVE {diff:.2f} cash"
+            status = "RECEIVE_DIFF"
+            personal_effect = diff
+        else:
+            diff = 0
+            result_text = "Balance cleared exactly"
+            status = "CLEARED"
+            personal_effect = 0
+            
+        return {
+            "difference": diff,
+            "result_text": result_text,
+            "status": status,
+            "personal_effect": personal_effect,
+            "company_effect": -company_balance # Clearing company wallet to 0
+        }
