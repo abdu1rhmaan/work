@@ -23,13 +23,15 @@ class CustomButton(Button):
         label = self.label.plain
         formatted_label = format_arabic(label)
         
+        # استخدام العرض الفعلي للويدجت إذا كان متاحاً، وإلا العرض المخصص
+        width = self.size.width if self.size.width > 0 else self.custom_width
+        
         # قص النص إذا كان طويلاً جداً
-        if len(formatted_label) > self.custom_width:
-            formatted_label = formatted_label[:self.custom_width-3] + "..."
+        if len(formatted_label) > width:
+            formatted_label = formatted_label[:width-3] + "..."
         
         # حساب الحشو الأفقي
-        width = self.custom_width
-        h_padding = (width - len(formatted_label)) // 2
+        h_padding = max(0, (width - len(formatted_label)) // 2)
         left_pad = " " * h_padding
         right_pad = " " * (width - len(formatted_label) - h_padding)
         
