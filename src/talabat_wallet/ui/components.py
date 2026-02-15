@@ -23,15 +23,20 @@ class CustomButton(Button):
         label = self.label.plain
         formatted_label = format_arabic(label)
         
-        # استخدام العرض الفعلي للويدجت إذا كان متاحاً، وإلا العرض المخصص
-        width = self.size.width if self.size.width > 0 else self.custom_width
+        # استخدام الحد الأدنى بين العرض المخصص والعرض المفضل
+        # هذا يضمن أن الأزرار لا تتجاوز حدود الحاوية (على الشاشات العادية)
+        # وفي نفس الوقت تتقلص على الشاشات الضيقة (مثل Termux)
+        if self.size.width > 0:
+            width = min(self.size.width, self.custom_width)
+        else:
+            width = self.custom_width
         
         # قص النص إذا كان طويلاً جداً
         if len(formatted_label) > width:
             formatted_label = formatted_label[:width-3] + "..."
         
         # حساب الحشو الأفقي
-        h_padding = max(0, (width - len(formatted_label)) // 2)
+        h_padding = (width - len(formatted_label)) // 2
         left_pad = " " * h_padding
         right_pad = " " * (width - len(formatted_label) - h_padding)
         
