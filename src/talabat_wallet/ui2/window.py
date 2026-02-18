@@ -119,8 +119,8 @@ class WindowHeader(Horizontal):
         # event.prevent_default() # Removed to see if it helps Termux pass the move
 
         if isinstance(self.parent, DraggableWindow):
-            log_debug("Header: Starting drag via Parent")
-            self.parent.start_dragging(event)
+            log_debug("Header: Recording potential drag via Parent")
+            self.parent._potential_drag = (event.screen_x, event.screen_y)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         # Reset visual feedback
