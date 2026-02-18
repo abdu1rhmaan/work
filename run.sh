@@ -7,13 +7,14 @@
 # Clear terminal and ensure we are in the right directory
 clear
 
-# Enable SGR Mouse Tracking (supports coordinates > 223)
-# \033[?1006h -> Enable SGR mode
-# \033[?1003h -> Enable all mouse events (clicks + movement)
-printf "\033[?1006h\033[?1003h"
+# Enable Mouse Tracking (Standard + Drag + SGR)
+# \033[?1000h -> Basic click tracking
+# \033[?1002h -> Drag tracking (crucial for window moving)
+# \033[?1006h -> SGR mode (extended coordinates)
+printf "\033[?1000h\033[?1002h\033[?1006h"
 
 echo "Starting Talabat Wallet with Touch Support..."
-echo "Tip: Drag windows using the title bar."
+echo "Tip: Long-press slightly on the title bar before dragging."
 
 # Run the app
 # Using -m (module mode) to support relative imports

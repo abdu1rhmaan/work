@@ -87,7 +87,11 @@ class WindowHeader(Horizontal):
         yield CloseButton()
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        # Check if the click/touch is on the close button
+        # Simplest check for close button to avoid latency in Termux
+        if hasattr(event, "widget") and event.widget.id == "close_btn":
+            return
+        
+        # Fallback check
         widget, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
         if widget and (widget.id == "close_btn" or isinstance(widget, CloseButton)):
             return
