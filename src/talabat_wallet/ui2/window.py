@@ -71,19 +71,19 @@ class WindowHeader(Horizontal):
     WindowHeader {
         dock: top;
         width: 100%;
-        height: 2;
+        height: 3; /* Increased for finger comfort */
         background: #1c2228; /* Unified Navy */
         color: #c9d1d9;
         layout: horizontal;
         padding: 0 1;
         margin: 0;
-        border-bottom: none;
+        border-bottom: solid #1a2030;
         content-align: left middle;
     }
 
     WindowHeader .window-title {
         width: 1fr;
-        height: 2;
+        height: 3;
         content-align: left middle;
         text-style: bold;
         color: #dce6f0;
@@ -103,25 +103,18 @@ class WindowHeader(Horizontal):
         self.styles.background = "#2a3441"
         log_debug(f"Header: mouse_down at {event.screen_x}, {event.screen_y}")
 
-        # Simplest check for close button to avoid latency in Termux
-        if getattr(event, "widget", None) and event.widget.id == "close_btn":
-            log_debug("Header: Close button detected, ignoring drag")
-            return
-        
-        # Fallback check
+        # Check if hitting the close button area
         widget, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
         if widget and (widget.id == "close_btn" or isinstance(widget, CloseButton)):
-            log_debug("Header: Close button (fallback) detected, ignoring drag")
+            log_debug("Header: Close button detected area, ignoring drag")
             return
 
         event.stop()
-        event.prevent_default()
+        # event.prevent_default() # Removed to see if it helps Termux pass the move
 
         if isinstance(self.parent, DraggableWindow):
-            log_debug("Header: Starting drag on parent window")
+            log_debug("Header: Starting drag via Parent")
             self.parent.start_dragging(event)
-        else:
-            log_debug("Header: Parent is not DraggableWindow")
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         # Reset visual feedback
@@ -265,7 +258,15 @@ class DraggableWindow(Vertical):
     # ---------- MOUSE EVENTS ---------- #
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: mouse_down at {event.screen_x}, {event.screen_y}")
+        log_debug(f"Window: mouse_down at {event.screen_x}, {event.screen_y} (Offset: {self.styles.offset.x}, {self.styles.offset.y})")
+        
+        # Fallback: If clicked in the top 4 lines of the window, allow dragging
+        # Relative Y to window
+        rel_y = event.screen_y - self.region.y
+        if rel_y <= 4:
+            log_debug(f"Window: Fallback drag started (rel_y: {rel_y})")
+            self.start_dragging(event)
+        
         event.stop()
         event.prevent_default()
 
