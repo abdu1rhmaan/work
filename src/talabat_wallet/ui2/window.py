@@ -88,7 +88,7 @@ class WindowHeader(Horizontal):
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
         # Simplest check for close button to avoid latency in Termux
-        if hasattr(event, "widget") and event.widget.id == "close_btn":
+        if getattr(event, "widget", None) and event.widget.id == "close_btn":
             return
         
         # Fallback check
