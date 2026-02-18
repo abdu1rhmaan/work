@@ -119,8 +119,8 @@ class WindowHeader(Horizontal):
         # event.prevent_default() # Removed to see if it helps Termux pass the move
 
         if isinstance(self.parent, DraggableWindow):
-            log_debug("Header: Recording potential drag via Parent")
-            self.parent._potential_drag = (event.screen_x, event.screen_y)
+            log_debug(f"Header: Starting parent drag at {event.screen_x}, {event.screen_y}")
+            self.parent.start_dragging(event.screen_x, event.screen_y)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         # Reset visual feedback
@@ -219,7 +219,7 @@ class DraggableWindow(Vertical):
         self.window_title = title
         self.drag_start = None
         self.start_offset = None
-        self._potential_drag = None
+        self._drag_start_time = 0
 
     def compose(self) -> ComposeResult:
         yield WindowHeader(self.window_title)
@@ -238,12 +238,14 @@ class DraggableWindow(Vertical):
     # ---------- DRAG ---------- #
 
     def start_dragging(self, screen_x: int, screen_y: int) -> None:
-        log_debug(f"Window: REAL DRAG STARTED at {screen_x}, {screen_y}")
+        import time
+        log_debug(f"Window: start_dragging at {screen_x}, {screen_y}")
         self.drag_start = (screen_x, screen_y)
         self.start_offset = (
             self.styles.offset.x.value,
             self.styles.offset.y.value,
         )
+        self._drag_start_time = time.time()
         self.add_class("is-dragging")
         self.capture_mouse()
 
@@ -255,7 +257,7 @@ class DraggableWindow(Vertical):
         if self.drag_start and self.start_offset:
             dx = event.screen_x - self.drag_start[0]
             dy = event.screen_y - self.drag_start[1]
-            # log_debug(f"Window: Moving by {dx}, {dy}")
+            # log_debug(f"Window: handle_dragging move {dx}, {dy}")
             self.styles.offset = (
                 int(self.start_offset[0] + dx),
                 int(self.start_offset[1] + dy),
@@ -269,7 +271,6 @@ class DraggableWindow(Vertical):
         log_debug("Window: stop_dragging")
         self.drag_start = None
         self.start_offset = None
-        self._potential_drag = None
         self.remove_class("is-dragging")
         self.release_mouse()
 
@@ -278,11 +279,10 @@ class DraggableWindow(Vertical):
     def on_mouse_down(self, event: events.MouseDown) -> None:
         log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y}")
         
-        # Check area for potential drag
+        # Start Dragging Immediately on Down (Continuous Mode)
         rel_y = event.screen_y - self.region.y
         if rel_y <= 4:
-            log_debug("Window: POTENTIAL DRAG recorded")
-            self._potential_drag = (event.screen_x, event.screen_y)
+            self.start_dragging(event.screen_x, event.screen_y)
         
         event.stop()
         event.prevent_default()
@@ -292,22 +292,20 @@ class DraggableWindow(Vertical):
         self.focus()
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
-        # If we have a potential drag but not started yet, start it now
-        if self._potential_drag and not self._dragging:
-            # Check if moved at least 1 pixel to confirm it's not a static tap
-            dx = abs(event.screen_x - self._potential_drag[0])
-            dy = abs(event.screen_y - self._potential_drag[1])
-            if dx > 0 or dy > 0:
-                self.start_dragging(self._potential_drag[0], self._potential_drag[1])
-
         if self._dragging:
-            log_debug(f"Window: on_mouse_move at {event.screen_x}, {event.screen_y}")
+            # log_debug(f"Window: on_mouse_move dragging to {event.screen_x}, {event.screen_y}")
             self.handle_dragging(event)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
+        import time
         log_debug(f"Window: on_mouse_up at {event.screen_x}, {event.screen_y}")
-        self._potential_drag = None
+        
         if self._dragging:
+            # Shield against rapid Touch Down/Up (within 0.1s at same spot)
+            duration = time.time() - self._drag_start_time
+            log_debug(f"Window: Drag duration: {duration:.3f}s")
+            
+            # If it's a super-fast click, we still stop, but we trust the user.
             self.stop_dragging()
 
     def on_click(self, event: events.Click) -> None:
