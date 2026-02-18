@@ -16,9 +16,14 @@ echo "Starting Talabat Wallet with Touch Support..."
 echo "Tip: Drag windows using the title bar."
 
 # Run the app
-# Ensure the src directory is in PYTHONPATH for imports to work
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-python src/talabat_wallet/main.py
+# Using -m (module mode) to support relative imports
+export PYTHONPATH=$(pwd)/src
+
+# Quick check to ensure imports work
+echo "Verifying environment..."
+python -c "import talabat_wallet.main; print('Import check: OK')" || { echo "Error: Import failed. Please check your setup."; exit 1; }
+
+python -m talabat_wallet
 
 # Reset Mouse Tracking on exit
 # \033[?1003l -> Disable all mouse events
