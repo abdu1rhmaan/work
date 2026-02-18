@@ -16,8 +16,9 @@ echo "Starting Talabat Wallet with Touch Support..."
 echo "Tip: Drag windows using the title bar."
 
 # Run the app
-# Adjust the python command if you use a virtual environment
-python main.py
+# Ensure the src directory is in PYTHONPATH for imports to work
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python src/talabat_wallet/main.py
 
 # Reset Mouse Tracking on exit
 # \033[?1003l -> Disable all mouse events
