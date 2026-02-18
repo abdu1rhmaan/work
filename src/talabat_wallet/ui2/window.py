@@ -55,11 +55,17 @@ def log_debug(message: str) -> None:
     """Helper to write debug logs to a file in the project root."""
     import os
     try:
-        # Save to the root of the project (one level above src/talabat_wallet)
-        # Assuming we are in src/talabat_wallet/ui2/window.py
-        log_path = os.path.join(os.getcwd(), "debug_touch.log")
+        # Save to the root of the project (~/work) using an absolute path
+        # This ensures it's created even if the relative CWD is weird.
+        project_root = os.getcwd()
+        if "src" in project_root:
+            project_root = os.path.dirname(project_root.split("src")[0])
+        
+        log_path = os.path.join(project_root, "debug_touch.log")
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"{message}\n")
+            import datetime
+            ts = datetime.datetime.now().strftime("%H:%M:%S")
+            f.write(f"[{ts}] {message}\n")
     except:
         pass
 
@@ -146,7 +152,7 @@ class DraggableWindow(Vertical):
         layer: overlay;
     }
 
-    DraggableWindow:focus-within {
+    DraggableWindow:focus-within, DraggableWindow.is-dragging {
         border: heavy #00d2ff; /* Ultra-Radiant glowing cyan */
     }
 
@@ -213,6 +219,7 @@ class DraggableWindow(Vertical):
         self.window_title = title
         self.drag_start = None
         self.start_offset = None
+        self._last_grab_time = 0  # Cooldown for touch toggling
 
     def compose(self) -> ComposeResult:
         yield WindowHeader(self.window_title)
@@ -230,36 +237,60 @@ class DraggableWindow(Vertical):
 
     # ---------- DRAG ---------- #
 
+    def force_mouse_tracking(self, enable: bool = True):
+        """Force Termux/Terminal to send all motion events."""
+        import sys
+        code = "\033[?1003h" if enable else "\033[?1003l"
+        sys.stdout.write(code)
+        sys.stdout.flush()
+
     def start_dragging(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: start_dragging at {event.screen_x}, {event.screen_y}")
+        import time
+        now = time.time()
+        
+        # Toggle logic with cooldown to handle rapid Touch Down/Up
+        if self._dragging:
+            if now - self._last_grab_time > 0.4:
+                log_debug("Window: Toggle-Stop Drag")
+                self.stop_dragging()
+            return
+
+        log_debug(f"Window: Toggle-Start Drag at {event.screen_x}, {event.screen_y}")
         self.drag_start = (event.screen_x, event.screen_y)
         self.start_offset = (
             self.styles.offset.x.value,
             self.styles.offset.y.value,
         )
+        self._last_grab_time = now
+        self.add_class("is-dragging")
         self.capture_mouse()
+        self.force_mouse_tracking(True)
 
         if self.parent:
             self.parent.move_child(self, after=self.parent.children[-1])
-
         self.focus()
 
     def handle_dragging(self, event: events.MouseMove) -> None:
         if self.drag_start and self.start_offset:
-            # Crucial: Check if terminal actually sends move with button held
             dx = event.screen_x - self.drag_start[0]
             dy = event.screen_y - self.drag_start[1]
-            log_debug(f"Window: handle_dragging move {dx}, {dy}")
+            # log_debug(f"Window: Moving by {dx}, {dy}")
             self.styles.offset = (
                 int(self.start_offset[0] + dx),
                 int(self.start_offset[1] + dy),
             )
 
+    @property
+    def _dragging(self) -> bool:
+        return self.drag_start is not None
+
     def stop_dragging(self) -> None:
-        log_debug("Window: stop_dragging")
+        log_debug("Window: Drag/Grab Stopped")
         self.drag_start = None
         self.start_offset = None
+        self.remove_class("is-dragging")
         self.release_mouse()
+        self.force_mouse_tracking(False)
 
     # ---------- MOUSE EVENTS ---------- #
 
@@ -282,12 +313,11 @@ class DraggableWindow(Vertical):
         self.focus()
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y}")
+        log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y} (Dragging: {self._dragging})")
         
-        # Normal drag fallback (Top area)
+        # Toggle Logic: Start or Stop
         rel_y = event.screen_y - self.region.y
-        if rel_y <= 4:
-            log_debug(f"Window: Header area press, starting drag")
+        if rel_y <= 4 or self._dragging:
             self.start_dragging(event)
         
         event.stop()
@@ -295,20 +325,16 @@ class DraggableWindow(Vertical):
 
         if self.parent and self.parent.children[-1] != self:
             self.parent.move_child(self, after=self.parent.children[-1])
-
         self.focus()
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
-        if self.drag_start:
-            # We don't check event.button here because some terminals 
-            # don't report buttons correctly in MouseMove
-            log_debug(f"Window: on_mouse_move dragging to {event.screen_x}, {event.screen_y}")
+        if self._dragging:
             self.handle_dragging(event)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         log_debug(f"Window: on_mouse_up at {event.screen_x}, {event.screen_y}")
-        if self.drag_start:
-            self.stop_dragging()
+        # We NO LONGER stop on MouseUp to allow Touch Swiping work
+        pass
 
     def on_click(self, event: events.Click) -> None:
         event.stop()
