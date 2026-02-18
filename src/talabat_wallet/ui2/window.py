@@ -52,9 +52,13 @@ class CloseButton(Static):
 
 
 def log_debug(message: str) -> None:
-    """Helper to write debug logs to a file."""
+    """Helper to write debug logs to a file in the project root."""
+    import os
     try:
-        with open("debug_touch.log", "a", encoding="utf-8") as f:
+        # Save to the root of the project (one level above src/talabat_wallet)
+        # Assuming we are in src/talabat_wallet/ui2/window.py
+        log_path = os.path.join(os.getcwd(), "debug_touch.log")
+        with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"{message}\n")
     except:
         pass
@@ -75,7 +79,6 @@ class WindowHeader(Horizontal):
         margin: 0;
         border-bottom: none;
         content-align: left middle;
-        user-select: none; /* Attempt to block TUI level selection */
     }
 
     WindowHeader .window-title {
@@ -84,7 +87,6 @@ class WindowHeader(Horizontal):
         content-align: left middle;
         text-style: bold;
         color: #dce6f0;
-        user-select: none;
     }
     """
 
