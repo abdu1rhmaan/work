@@ -213,6 +213,7 @@ class DraggableWindow(Vertical):
         self.window_title = title
         self.drag_start = None
         self.start_offset = None
+        self.is_sticky_grabbing = False  # Support for "Tap to Grab" on touch
 
     def compose(self) -> ComposeResult:
         yield WindowHeader(self.window_title)
@@ -223,12 +224,33 @@ class DraggableWindow(Vertical):
         yield Static("No data found", classes="no-data-msg")
 
     def close(self) -> None:
+        # Ensure mouse is released if closing while dragging
+        if self.drag_start or self.is_sticky_grabbing:
+            self.stop_dragging()
         self.post_message(self.Closed())
         self.remove()
 
     # ---------- DRAG ---------- #
 
+    def force_mouse_tracking(self, enable: bool = True):
+        """Force Termux/Terminal to send all motion events."""
+        import sys
+        code = "\033[?1003h" if enable else "\033[?1003l"
+        sys.stdout.write(code)
+        sys.stdout.flush()
+
     def start_dragging(self, event: events.MouseDown) -> None:
+        log_debug("Window: Calling start_dragging")
+        
+        # Toggle sticky grabbing for touch devices
+        if not self.drag_start and not self.is_sticky_grabbing:
+            self.is_sticky_grabbing = True
+            log_debug("Window: STICKY GRAB ENABLED")
+            self.force_mouse_tracking(True)
+        else:
+            self.stop_dragging()
+            return
+
         self.drag_start = (event.screen_x, event.screen_y)
         self.start_offset = (
             self.styles.offset.x.value,
@@ -245,15 +267,19 @@ class DraggableWindow(Vertical):
         if self.drag_start and self.start_offset:
             dx = event.screen_x - self.drag_start[0]
             dy = event.screen_y - self.drag_start[1]
+            log_debug(f"Window: Moving by {dx}, {dy}")
             self.styles.offset = (
                 int(self.start_offset[0] + dx),
                 int(self.start_offset[1] + dy),
             )
 
     def stop_dragging(self) -> None:
+        log_debug("Window: Stopping drag/grab")
         self.drag_start = None
         self.start_offset = None
+        self.is_sticky_grabbing = False
         self.release_mouse()
+        self.force_mouse_tracking(False)
 
     # ---------- MOUSE EVENTS ---------- #
 
@@ -275,18 +301,39 @@ class DraggableWindow(Vertical):
 
         self.focus()
 
-    def on_mouse_move(self, event: events.MouseMove) -> None:
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        log_debug(f"Window: mouse_down at {event.screen_x}, {event.screen_y} (Sticky: {self.is_sticky_grabbing})")
+        
+        # If we are in sticky mode, any click stops the drag
+        if self.is_sticky_grabbing:
+            self.stop_dragging()
+            return
+
+        # Fallback: If clicked in the top 4 lines of the window, allow dragging
+        rel_y = event.screen_y - self.region.y
+        if rel_y <= 4:
+            log_debug(f"Window: Fallback drag started (rel_y: {rel_y})")
+            self.start_dragging(event)
+        
         event.stop()
         event.prevent_default()
 
+        if self.parent and self.parent.children[-1] != self:
+            self.parent.move_child(self, after=self.parent.children[-1])
+
+        self.focus()
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
         if self.drag_start:
             log_debug(f"Window: dragging to {event.screen_x}, {event.screen_y}")
             self.handle_dragging(event)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
-        log_debug(f"Window: mouse_up at {event.screen_x}, {event.screen_y}")
-        event.stop()
-        event.prevent_default()
+        log_debug(f"Window: mouse_up at {event.screen_x}, {event.screen_y} (Sticky: {self.is_sticky_grabbing})")
+        
+        # In Sticky mode, we do NOT stop on mouse_up
+        if self.is_sticky_grabbing:
+            return
 
         if self.drag_start:
             self.stop_dragging()
