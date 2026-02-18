@@ -219,7 +219,7 @@ class DraggableWindow(Vertical):
         self.window_title = title
         self.drag_start = None
         self.start_offset = None
-        self._last_grab_time = 0  # Cooldown for touch toggling
+        self._potential_drag = None
 
     def compose(self) -> ComposeResult:
         yield WindowHeader(self.window_title)
@@ -237,34 +237,15 @@ class DraggableWindow(Vertical):
 
     # ---------- DRAG ---------- #
 
-    def force_mouse_tracking(self, enable: bool = True):
-        """Force Termux/Terminal to send all motion events."""
-        import sys
-        code = "\033[?1003h" if enable else "\033[?1003l"
-        sys.stdout.write(code)
-        sys.stdout.flush()
-
-    def start_dragging(self, event: events.MouseDown) -> None:
-        import time
-        now = time.time()
-        
-        # Toggle logic with cooldown to handle rapid Touch Down/Up
-        if self._dragging:
-            if now - self._last_grab_time > 0.4:
-                log_debug("Window: Toggle-Stop Drag")
-                self.stop_dragging()
-            return
-
-        log_debug(f"Window: Toggle-Start Drag at {event.screen_x}, {event.screen_y}")
-        self.drag_start = (event.screen_x, event.screen_y)
+    def start_dragging(self, screen_x: int, screen_y: int) -> None:
+        log_debug(f"Window: REAL DRAG STARTED at {screen_x}, {screen_y}")
+        self.drag_start = (screen_x, screen_y)
         self.start_offset = (
             self.styles.offset.x.value,
             self.styles.offset.y.value,
         )
-        self._last_grab_time = now
         self.add_class("is-dragging")
         self.capture_mouse()
-        self.force_mouse_tracking(True)
 
         if self.parent:
             self.parent.move_child(self, after=self.parent.children[-1])
@@ -285,40 +266,23 @@ class DraggableWindow(Vertical):
         return self.drag_start is not None
 
     def stop_dragging(self) -> None:
-        log_debug("Window: Drag/Grab Stopped")
+        log_debug("Window: stop_dragging")
         self.drag_start = None
         self.start_offset = None
+        self._potential_drag = None
         self.remove_class("is-dragging")
         self.release_mouse()
-        self.force_mouse_tracking(False)
 
     # ---------- MOUSE EVENTS ---------- #
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: mouse_down at {event.screen_x}, {event.screen_y} (Offset: {self.styles.offset.x}, {self.styles.offset.y})")
+        log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y}")
         
-        # Fallback: If clicked in the top 4 lines of the window, allow dragging
-        # Relative Y to window
+        # Check area for potential drag
         rel_y = event.screen_y - self.region.y
         if rel_y <= 4:
-            log_debug(f"Window: Fallback drag started (rel_y: {rel_y})")
-            self.start_dragging(event)
-        
-        event.stop()
-        event.prevent_default()
-
-        if self.parent and self.parent.children[-1] != self:
-            self.parent.move_child(self, after=self.parent.children[-1])
-
-        self.focus()
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y} (Dragging: {self._dragging})")
-        
-        # Toggle Logic: Start or Stop
-        rel_y = event.screen_y - self.region.y
-        if rel_y <= 4 or self._dragging:
-            self.start_dragging(event)
+            log_debug("Window: POTENTIAL DRAG recorded")
+            self._potential_drag = (event.screen_x, event.screen_y)
         
         event.stop()
         event.prevent_default()
@@ -328,13 +292,23 @@ class DraggableWindow(Vertical):
         self.focus()
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
+        # If we have a potential drag but not started yet, start it now
+        if self._potential_drag and not self._dragging:
+            # Check if moved at least 1 pixel to confirm it's not a static tap
+            dx = abs(event.screen_x - self._potential_drag[0])
+            dy = abs(event.screen_y - self._potential_drag[1])
+            if dx > 0 or dy > 0:
+                self.start_dragging(self._potential_drag[0], self._potential_drag[1])
+
         if self._dragging:
+            log_debug(f"Window: on_mouse_move at {event.screen_x}, {event.screen_y}")
             self.handle_dragging(event)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         log_debug(f"Window: on_mouse_up at {event.screen_x}, {event.screen_y}")
-        # We NO LONGER stop on MouseUp to allow Touch Swiping work
-        pass
+        self._potential_drag = None
+        if self._dragging:
+            self.stop_dragging()
 
     def on_click(self, event: events.Click) -> None:
         event.stop()
