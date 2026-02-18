@@ -87,20 +87,34 @@ class WindowHeader(Horizontal):
         yield CloseButton()
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
+        # Visual feedback for debugging
+        self.styles.background = "#2a3441"
+        self.app.log(f"Header: mouse_down at {event.screen_x}, {event.screen_y}")
+
         # Simplest check for close button to avoid latency in Termux
         if getattr(event, "widget", None) and event.widget.id == "close_btn":
+            self.app.log("Header: Close button detected, ignoring drag")
             return
         
         # Fallback check
         widget, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
         if widget and (widget.id == "close_btn" or isinstance(widget, CloseButton)):
+            self.app.log("Header: Close button (fallback) detected, ignoring drag")
             return
 
         event.stop()
         event.prevent_default()
 
         if isinstance(self.parent, DraggableWindow):
+            self.app.log("Header: Starting drag on parent window")
             self.parent.start_dragging(event)
+        else:
+            self.app.log("Header: Parent is not DraggableWindow")
+
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        # Reset visual feedback
+        self.styles.background = "#1c2228"
+        self.app.log(f"Header: mouse_up at {event.screen_x}, {event.screen_y}")
 
 
 # ================= WINDOW ================= #

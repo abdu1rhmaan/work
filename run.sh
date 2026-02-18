@@ -55,7 +55,14 @@ export PYTHONPATH=$(pwd)/src
 printf "\033[?1000h\033[?1002h\033[?1006h"
 
 echo "Starting Talabat Wallet..."
-echo "Tip: Long-press slightly on the title bar before dragging."
+echo "---------------------------------------------------------"
+echo "DEBUG TIPS:"
+echo "1. To see logs: Open a new Termux tab and run 'textual console'."
+echo "2. If long-press selects text: This is an Android/Termux setting."
+echo "   Go to 'Termux Settings' -> 'Terminal' -> 'Selection' and disable it if possible."
+echo "   OR use a different terminal like 'Termux:GUI' or 'ConnectBot'."
+echo "3. Dragging Tip: Tap once, then drag quickly. Avoid a heavy long-press."
+echo "---------------------------------------------------------"
 
 # 3. LAUNCH APP
 python -m talabat_wallet
