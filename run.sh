@@ -50,18 +50,21 @@ if not test_mouse():
 # 2. RUNTIME CONFIGURATION
 export PYTHONPATH=$(pwd)/src
 
-# Enable Mouse Tracking (Standard + Drag + SGR)
-# 1002h is key for dragging support
-printf "\033[?1000h\033[?1002h\033[?1006h"
+# Clear old debug logs
+rm -f debug_touch.log
+
+# Enable Mouse Tracking (Standard + Motion + SGR)
+# 1003h -> Track all mouse motion (most aggressive, best for touch)
+printf "\033[?1000h\033[?1003h\033[?1006h"
 
 echo "Starting Talabat Wallet..."
 echo "---------------------------------------------------------"
 echo "DEBUG TIPS:"
-echo "1. To see logs: Open a new Termux tab and run 'textual console'."
-echo "2. If long-press selects text: This is an Android/Termux setting."
-echo "   Go to 'Termux Settings' -> 'Terminal' -> 'Selection' and disable it if possible."
-echo "   OR use a different terminal like 'Termux:GUI' or 'ConnectBot'."
-echo "3. Dragging Tip: Tap once, then drag quickly. Avoid a heavy long-press."
+echo "1. Logs are saved to: 'debug_touch.log'"
+echo "2. To see logs after closing: 'cat debug_touch.log'"
+echo "3. If long-press selects text: DISABLE IT in Termux settings."
+echo "   (Long-press screen -> More -> Selection -> Disable or use Mouse Mode)"
+echo "4. Dragging Tip: Tap the title bar and move immediately."
 echo "---------------------------------------------------------"
 
 # 3. LAUNCH APP
