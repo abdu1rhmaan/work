@@ -24,6 +24,15 @@ Screen {
     margin: 0;
 }
 
+#mode-display, #batch-display {
+    border: none;
+}
+
+#shift-status-header:hover {
+    text-style: underline bold;
+    color: $accent;
+}
+
 #wallets-row {
     height: 3;
     margin-bottom: 1;
@@ -85,20 +94,38 @@ Button {
 }
 
 CustomButton:focus, Button:focus, .option-button:focus {
-    /* Match normal state to eliminate auto-focus flash */
-    /* Explicit highlight only on hover */
+    /* Prevent default blue focus ring and flash */
+    outline: none;
+    border: none;
     text-style: bold;
 }
 
 CustomButton:hover, Button:hover, .option-button:hover {
-    background: #0056ff !important;
-    color: white !important;
+    background: #0056ff;
+    color: white;
 }
 
 /* 🛡️ Block blue flash on Dashboard buttons when auto-focused */
 #main-buttons CustomButton:focus {
     background: #1a1a1a;
     color: white;
+}
+
+/* 🧊 Window Mode: Block background interactions */
+.window-mode #info-row,
+.window-mode #wallets-row,
+.window-mode #main-buttons,
+.window-mode #stats-container {
+    tint: #000000 30%; /* Lighter tint to keep dashboard vibrant */
+}
+
+.window-mode #dashboard-layout CustomButton:hover,
+.window-mode #dashboard-layout Button:hover,
+.window-mode #dashboard-layout ListItem:hover,
+.window-mode #dashboard-layout .status-header:hover {
+    background: $boost;
+    color: $text;
+    text-style: none;
 }
 
 ListItem:hover {
@@ -649,16 +676,17 @@ Input, Select {
 #history-header {
     height: 1;
     width: 100%;
-    background: $primary-darken-2;
-    color: $accent;
+    background: #1c2228;
+    color: #9ed0ff;
     text-style: bold;
-    padding: 0;
+    padding: 0 1;
+    border-bottom: solid #2a8bdc;
+    content-align: left middle;
 }
 
 #history-header Label {
     height: 1;
-    text-align: center;
-    content-align: center middle;
+    content-align: left middle;
 }
 
 #history-list {
@@ -791,8 +819,8 @@ HistoryRow:focus {
 #expense-list {
     height: 10;
     margin-top: 1;
-    border: solid $primary-darken-2;
-    background: $surface;
+    border: solid #1a2535;
+    background: #0c1017; /* Navy Background */
 }
 
 .divider {
@@ -969,10 +997,10 @@ HistoryRow:focus {
 }
 
 .dialog-header {
-    background: $primary-darken-3;
+    background: #111820; /* Dark Navy */
     padding: 0 1;
-    height: 3;
-    border-bottom: solid $primary;
+    height: 2; /* Consistent with window header */
+    border-bottom: solid #1e2732;
 }
 
 .dialog-body {
@@ -1057,16 +1085,52 @@ HistoryRow:focus {
     color: #00ffcc;
 }
 
+#shifts-history-header {
+    height: 1;
+    width: 100%;
+    background: #111820;
+    color: #9ed0ff;
+    text-style: bold;
+    padding: 0 1;
+    border-bottom: solid #1e2732;
+}
+
 .shift-history-row {
     height: 1;
     layout: horizontal;
     width: 100%;
-    border-bottom: solid $primary 10%;
-    background: $surface;
+    border-bottom: solid #1a2535;
+    background: #0c1017;
 }
 
 .shift-history-row:hover {
-    background: $primary-darken-2;
+    background: #131c27;
+    color: white;
+}
+
+.shift-row-container {
+    width: 100%;
+    height: 1;
+}
+
+.shift-row-container Label, #shifts-history-header Label {
+    height: 1;
+    content-align: center middle;
+}
+
+.shift-date {
+    width: 40% !important;
+    text-align: left;
+}
+
+.shift-status {
+    width: 35% !important;
+    text-align: center;
+}
+
+.shift-orders {
+    width: 25% !important;
+    text-align: right;
 }
 
 .shift-history-row Label {
@@ -1106,6 +1170,7 @@ HistoryRow:focus {
 
 .break-options {
     padding: 1 0;
+    background: #1c2228; /* Light Navy */
 }
 
 /* Final Cleanup */
@@ -1194,6 +1259,7 @@ HistoryRow:focus {
     width: 100%;
     height: 1;
     margin-top: 1;
+    background: #1c2228; /* Light Navy */
 }
 
 #manual-settlement-dialog #dialog-buttons CustomButton {
@@ -1205,6 +1271,7 @@ HistoryRow:focus {
     height: 1;
     width: 100%;
     margin-bottom: 1;
+    background: #1c2228; /* Light Navy */
 }
 
 #mode-selection CustomButton {
@@ -1250,8 +1317,8 @@ HistoryRow:focus {
 .option-button {
     width: 1fr;
     height: 1;
-    background: $boost;
-    color: $text;
+    background: #1c2228; /* Light Navy */
+    color: #9ed0ff;
     border: none;
     content-align: center middle;
 }
@@ -1264,6 +1331,80 @@ HistoryRow:focus {
 
 .option-button:focus {
     background: #0045e6;
+    color: white;
+}
+
+
+#history-header {
+    height: 1;
+    background: #1c2228; /* Light Navy */
+    color: #9ed0ff;
+    text-style: bold;
+    border-bottom: solid #2a8bdc;
+    content-align: left middle;
+    padding: 0 1;
+}
+
+#history-header Label {
+    height: 1;
+    content-align: left middle;
+    color: #9ed0ff;
+    text-style: bold;
+}
+
+.col-sel { width: 4; }
+.col-id { width: 6; }
+.col-date { width: 1fr; }
+.col-type { width: 15; }
+.col-profit { width: 12; }
+
+/* Ensure scrollbars are visible in windows */
+.window-content {
+    scrollbar-gutter: stable;
+    scrollbar-color: $primary-lighten-1 20%;
+    scrollbar-size: 1 1;
+}
+
+/* ===== UNIFIED NAVY LOOK & OUTLINING ===== */
+#filter-section, 
+#dialog-buttons, 
+#expense-form, 
+#txn-type-toggle, 
+#wallet-info-row, 
+#txn-details-content, 
+#details-content, 
+#edit-content {
+    background: transparent;
+    padding: 1;
+    border: solid #ffffff 3%; /* Subtle outlining (Takh-teet) */
+    margin: 0 0 1 0;
+}
+
+#history-list, 
+#expense-list, 
+#suggestion-list,
+#suggestion-list OptionList {
+    background: transparent;
+    border: solid #ffffff 3%; /* Matching outline */
+}
+
+/* ===== STABLE BUTTON HOVERS ===== */
+CustomButton:hover {
+    background: #0056ff !important;
+    color: white !important;
+}
+
+CustomButton:focus {
+    background: #0045e6 !important;
+    color: white !important;
+}
+
+.option-button:hover {
+    background: #2a3441;
+}
+
+.shift-history-item:hover {
+    background: #2a3441;
     color: white;
 }
 

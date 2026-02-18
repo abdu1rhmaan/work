@@ -36,6 +36,7 @@ class WalletDisplay(Static):
     """عرض المحفظة"""
     
     value = reactive(0.0)
+    can_focus = False
     
     def __init__(self, label: str, value: float = 0.0, **kwargs):
         super().__init__(**kwargs)
@@ -56,10 +57,13 @@ class ModeDisplay(Static):
     """عرض وضع المحاسبة"""
     
     mode = reactive("CASH")
+    can_focus = False
     
     def __init__(self, mode: str = "CASH", **kwargs):
         super().__init__(**kwargs)
         self.mode = mode
+        # Force initial text update
+        self.watch_mode(mode)
     
     def watch_mode(self, mode: str) -> None:
         """تحديث العرض عند تغيير الوضع"""
@@ -72,10 +76,13 @@ class BatchDisplay(Static):
     """عرض الباتش الحالي"""
     
     batch = reactive("1")
+    can_focus = False
     
     def __init__(self, batch: str = "1", **kwargs):
         super().__init__(**kwargs)
         self.batch = batch
+        # Force initial text update
+        self.watch_batch(batch)
     
     def watch_batch(self, batch: str) -> None:
         """تحديث العرض عند تغيير الباتش"""

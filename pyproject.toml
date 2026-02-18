@@ -19,4 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-work = "talabat_wallet.__main__:main"
+work = "talabat_wallet.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
