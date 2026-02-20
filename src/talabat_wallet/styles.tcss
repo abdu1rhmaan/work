@@ -1,5 +1,5 @@
 Screen {
-    background: $surface;
+    background: #0d1117;
     layers: base popup;
 }
 
@@ -19,6 +19,7 @@ Screen {
 #dashboard-layout {
     height: 1fr;
     width: 100%;
+    background: #0d1117;
 }
 
 #info-row {
@@ -35,6 +36,9 @@ Screen {
     content-align: center middle;
     padding: 0;
     margin: 0;
+    color: $text !important;
+    opacity: 1 !important;
+    text-style: none !important;
 }
 
 #mode-display, #batch-display {
@@ -102,9 +106,9 @@ Button {
 CustomButton:focus, Button:focus, Input:focus, Select:focus, .option-button:focus {
     outline: none;
     border: none;
-    background: #1c2228;
-    color: white;
-    text-style: bold;
+    background: $surface-lighten-1;
+    color: $text;
+    text-style: none;
 }
 
 /* Global Navigation & Scrollbars */
@@ -133,42 +137,10 @@ CustomButton {
 #main-buttons CustomButton:focus {
     background: $surface-lighten-1;
     color: $text;
-}
-
-/* 🧊 Window Mode: Subtle Dimming - keep background visible */
-.window-mode #info-row,
-.window-mode #wallets-row,
-.window-mode #main-buttons,
-
-/* 🛡️ Window Mode: Freeze hover on dashboard background elements */
-/* Keep appearance exactly as resting state — no color change on hover */
-.window-mode #main-buttons CustomButton:hover {
-    background: $boost;
-    color: $text;
-    text-style: none;
-}
-
-.window-mode #info-row Static:hover,
-.window-mode #info-row Static:hover,
-.window-mode #info-row Label:hover {
-    background: $primary-darken-2;
-    color: $text;
-    text-style: none;
-}
-
-.window-mode #wallets-row WalletDisplay:hover {
-    background: $primary-darken-2;
-    color: $text;
     text-style: none;
 }
 
 
-.window-mode .status-header:hover,
-.window-mode #shift-status-header:hover {
-    background: $primary-darken-2;
-    color: $text;
-    text-style: none;
-}
 
 ListItem:hover {
     background: $primary-darken-1;
@@ -218,13 +190,6 @@ BaseWindow {
     box-sizing: border-box;
     layer: popup;
     overflow: hidden;
-    
-    /* 🌑 Shadow Simulation: Use a thick dark border on right/bottom only */
-    border-bottom: inner #000000;
-    border-right: inner #000000;
-    /* Maintain primary styling without overriding the layout */
-    border-top: solid $primary;
-    border-left: solid $primary;
 }
 
 BaseWindow .window-content {
@@ -1686,3 +1651,14 @@ Input.-invalid {
 }
 
 
+
+
+
+BaseWindow.-active {
+    offset: 0 0;
+    layer: popup;
+}
+
+BaseWindow.-inactive {
+    tint: #000000 30%;
+}

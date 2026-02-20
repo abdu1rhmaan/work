@@ -196,11 +196,15 @@ class BaseWindow(Vertical):
     def on_focus(self, event: events.Focus) -> None:
         """Inform dashboard when this window becomes the active focus."""
         self.on_window_focus()
+        self.add_class("-active")
+        self.remove_class("-inactive")
         self.post_message(self.WindowResized(self.window_title, self.size.width, self.size.height))
 
     def on_blur(self, event: events.Blur) -> None:
         """Clear size info when window loses focus."""
         self.on_window_blur()
+        self.remove_class("-active")
+        self.add_class("-inactive")
         self.post_message(self.WindowResized("", 0, 0))
 
     def compose(self) -> ComposeResult:
@@ -256,6 +260,9 @@ class BaseWindow(Vertical):
 
     def on_key(self, event: events.Key) -> None:
         """Move the window using arrow keys."""
+        if not (self.has_focus or self.has_focus_within):
+            return
+
         step = 2
         moved = False
         ox, oy = self.styles.offset.x.value, self.styles.offset.y.value
@@ -325,9 +332,8 @@ class BaseWindow(Vertical):
         if self.parent and self.parent.children[-1] != self:
             self.parent.move_child(self, after=self.parent.children[-1])
 
-        # Focus window itself only if nothing inside already has focus
-        if not self.has_focus_within:
-            self.focus()
+        # Force window to top level focus regardless of children
+        self.focus()
 
         # Header zone drag (top 3 rows): stop + prevent so content doesn't shift
         rel_y = event.screen_y - self.region.y
@@ -358,8 +364,7 @@ class BaseWindow(Vertical):
             event.stop() # 🛑 Prevent dashboard from receiving this click and clearing focus!
         if self.parent:
             self.parent.move_child(self, after=self.parent.children[-1])
-        if not self.has_focus_within:
-            self.focus()
+        self.focus()
 
     def on_base_window_global_settings_changed(self, message: GlobalSettingsChanged) -> None:
         """Reactive UI: Refresh window content when settings change globally."""

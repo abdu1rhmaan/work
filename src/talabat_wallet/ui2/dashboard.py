@@ -55,7 +55,7 @@ class DashboardScreen(Screen):
         self.update_shift_status()
         self.set_interval(1, self.update_shift_status)
         self.set_interval(60, self.db.check_auto_updates)
-        self.set_focus(None)
+        pass
 
     @on(BaseWindow.WindowResized)
     def handle_window_resize_msg(self, event: BaseWindow.WindowResized) -> None:
@@ -90,7 +90,7 @@ class DashboardScreen(Screen):
                 window.post_message(event)
 
     def on_show(self) -> None:
-        self.set_focus(None)
+        pass
     
     def update_shift_status(self) -> None:
         """تحديث نص حالة الوردية والمؤقت في الهيدر"""
@@ -173,7 +173,7 @@ class DashboardScreen(Screen):
             return
 
         if target in [self, self.query_one("#desktop"), self.query_one("#dashboard-layout")]:
-            self.set_focus(None)
+            pass
             return
 
         # 2. Handle header/stat clicks

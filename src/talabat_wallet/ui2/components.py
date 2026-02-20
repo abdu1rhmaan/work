@@ -30,7 +30,7 @@ class CustomButton(Button):
     def on_click(self) -> None:
         """إزالة التركيز عن الزر بعد الضغط مباشرة"""
         if self.screen:
-            self.screen.set_focus(None)
+            pass
 
 class WalletDisplay(Static):
     """عرض المحفظة"""
@@ -179,7 +179,7 @@ class AppInput(Input):
         """Force keyboard reopen on mobile with robust focus handling"""
         # 1. HARD RESET: Clear focus from the entire screen first
         if self.screen:
-            self.screen.set_focus(None)
+            pass
         
         # 2. Force invalidation to ensure UI updates reflect the "blur"
         self.refresh()
