@@ -4,19 +4,24 @@ from textual.widgets import Button, Static, Select
 from textual import events
 from ..models import ModeType, OrderType
 from ..engine import AccountingEngine
-from ..ui.components import CustomButton, OptionSelector, ArabicInput
-from .window import DraggableWindow
+from .components import CustomButton, OptionSelector, ArabicInput
+from .window import BaseWindow
 
-class AddOrderWindow(DraggableWindow):
+class AddOrderWindow(BaseWindow):
+    WINDOW_ID = "add_order"
     """نافذة إضافة أو تعديل طلب جديد (Draggable)"""
-    
+
+    WINDOW_ID = "add_order"
+
     def __init__(self, db, callback=None, order_to_edit=None):
         title = "EDIT ORDER" if order_to_edit else "ADD NEW ORDER"
-        super().__init__(title=title)
         self.db = db
         self.callback = callback
         self.order_to_edit = order_to_edit
         self.settings = self.db.get_settings()
+        
+        # 📏 Use auto height — field visibility will drive the size dynamically
+        super().__init__(title=title, width=65)
         self.batch_prices = self.db.get_batch_prices()
         self.current_batch = self.settings['batch']
         self.calculated_delivery_fee = 0.0
@@ -103,18 +108,15 @@ class AddOrderWindow(DraggableWindow):
 
     def on_mount(self) -> None:
         """تهيئة الشاشة"""
-        # Call super first? Not strictly needed for logic but good practice if base does something
-        # super().on_mount() 
-        
+        # 🔄 Safe: call_after_refresh ensures widgets are mounted before we query them
+        self.call_after_refresh(self._post_mount_init)
+
+    def _post_mount_init(self) -> None:
+        """Run after first render to safely query and update widgets"""
         self.update_field_visibility()
         if self.order_to_edit:
             self.prepopulate_fields()
-        else:
-            pass
         self.update_delivery_fee()
-        
-        # Focus logic adapted for Window
-        # We might want to focus the first input after a short delay
         self.set_timer(0.2, self.initial_focus)
 
     def initial_focus(self) -> None:
@@ -134,12 +136,12 @@ class AddOrderWindow(DraggableWindow):
         self.calculated_delivery_fee = self.order_to_edit['delivery_fee']
 
     def update_field_visibility(self) -> None:
-        """تحديث ظهور الحقول حسب المود ونوع الطلب"""
-        mode = self.order_to_edit['mode'] if self.order_to_edit else self.settings['mode']
+        """تحديث ظهور الحقول بناءً على وضع المحاسبة ونوع الطلب"""
+        mode = self.settings.get('mode', 'CASH')
         order_type = self.order_type_selector.value
         
+        # 🛡️ Safe query: toggle display based on mode
         containers = {
-            "order-type": self.query_one("#order-type-container"),
             "paid": self.query_one("#paid-container"),
             "expected": self.query_one("#expected-container"),
             "actual": self.query_one("#actual-container"),
@@ -148,25 +150,27 @@ class AddOrderWindow(DraggableWindow):
         }
         
         if mode == "VISA":
-            containers["order-type"].display = True
-            containers["paid"].display = False
-            containers["expected"].display = False
-            containers["actual"].display = False
-            containers["tip-cash"].display = True
-            containers["tip-visa"].display = True
-            self.tip_cash_input.focus()
-        else:
-            containers["order-type"].display = True
-            containers["expected"].display = True
-            containers["actual"].display = True
-            containers["tip-cash"].display = False
-            containers["tip-visa"].display = False
-            if order_type == "Restaurant":
-                containers["paid"].display = True
-                self.paid_input.focus()
-            else:
-                containers["paid"].display = False
-                self.expected_input.focus()
+            containers["paid"].display = "none"
+            containers["expected"].display = "none"
+            containers["actual"].display = "none"
+            containers["tip-cash"].display = "block"
+            containers["tip-visa"].display = "block"
+        else: # CASH
+            containers["tip-cash"].display = "none"
+            containers["tip-visa"].display = "none"
+            containers["expected"].display = "block"
+            containers["actual"].display = "block"
+            # Paid is only for Restaurant in CASH mode
+            containers["paid"].display = "block" if (order_type == "Restaurant") else "none"
+        
+        # 🔄 CRITICAL: trigger immediate layout recalculation after show/hide
+        self.refresh()
+
+    def refresh_ui(self, settings: dict) -> None:
+        """Reactive UI: Auto-update visibility when settings change globally."""
+        self.settings = settings
+        self.update_field_visibility()
+        self.update_delivery_fee()
 
     def update_delivery_fee(self) -> None:
         """تحديث رسوم التوصيل والجملة التوضيحية"""
@@ -310,6 +314,8 @@ class AddOrderWindow(DraggableWindow):
                 order_dict['datetime'] = self.order_to_edit['datetime']
                 if await self.db.update_order(self.order_to_edit['id'], order_dict):
                     self.notify("Order updated successfully!")
+                    # 🚀 Broadcast update
+                    self.post_message(self.OrderAdded())
                     if self.callback:
                         self.callback()
                     self.close()
@@ -319,6 +325,8 @@ class AddOrderWindow(DraggableWindow):
                 self.db.add_order(order_dict)
                 profit = AccountingEngine.calculate_profit(delivery_fee, order.tip_cash, order.tip_visa)
                 self.notify(f"Order added! Profit: {profit:.2f} EGP")
+                # 🚀 Broadcast update to all listeners (Wallet, Dashboard, etc.)
+                self.post_message(self.OrderAdded())
                 if self.callback:
                     self.callback()
                 self.close()

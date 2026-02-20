@@ -86,48 +86,6 @@ class BatchDisplay(Static):
     
     def watch_batch(self, batch: str) -> None:
         """تحديث العرض عند تغيير الباتش"""
-        self.update(f"[ Batch: {batch} ]")
-
-class HistoryTable(DataTable):
-    """جدول التاريخ التفاعلي مع دعم الاختيار المتعدد"""
-    
-    class RowClicked(Message, bubble=True):
-        """رسالة عند الضغط على سطر (ضغطة واحدة)"""
-        def __init__(self, row_key):
-            super().__init__()
-            self.row_key = row_key
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.cursor_type = "row"
-        self.zebra_stripes = True
-        # إضافة عمود الاختيار في البداية مع مفاتيح للأعمدة
-        self.add_column("✓", key="sel")
-        self.add_column("ID", key="id")
-        self.add_column("Date", key="date")
-        self.add_column("Type", key="type")
-        self.add_column("Paid", key="paid")
-        self.add_column("Expected", key="expected")
-        self.add_column("Actual", key="actual")
-        self.add_column("Profit", key="profit")
-    
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-        """اكتشاف الضغط بالماوس على السطر فوراً"""
-        try:
-            # محاولة الحصول على السطر بناءً على الإحداثيات
-            row_index = self.get_row_at(event.y)
-            
-            # Fallback في حال كانت الاحداثيات خارج النطاق المباشر (لأن الهيدر له مكان)
-            if row_index is None:
-                # حساب يدوي: (Y بالنسبة للويدجت - 1 للهيدر) + السكرول
-                row_index = (event.y - 1) + self.scroll_y
-            
-            if 0 <= row_index < self.row_count:
-                row_key = self.get_row_key_at(row_index)
-                self.post_message(self.RowClicked(row_key))
-        except Exception:
-            pass
-    
 class HistoryRow(ListItem):
     """سطر تاريخ يحتوي على زر حقيقي للاختيار"""
     
@@ -171,6 +129,8 @@ class HistoryRow(ListItem):
             self.post_message(self.ToggleSelection(self.order_id))
             event.stop()
             event.prevent_default()
+
+
 
 class OptionSelector(Static):
     """مكون لاختيار خيار من مجموعة أزرار"""
@@ -329,45 +289,13 @@ class ArabicInput(AppInput):
         
     def on_focus(self) -> None:
         """إزالة حالة الخطأ عند التركيز وطلب الكيبورد"""
-        if self.has_class("invalid"):
-            self.remove_class("invalid")
+        self.remove_class("invalid")
+        self._is_invalid = False
 
-class ShiftTimerDisplay(Static):
-    """عرض مؤقت الوردية"""
-    
-    start_time = reactive(None)
-    
-    def __init__(self, start_time: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        self.start_time = start_time
-        self.timer = None
-        
-    def on_mount(self) -> None:
-        """بدء التحديث الدوري"""
-        self.timer = self.set_interval(1.0, self.update_timer)
-        
-    def update_timer(self) -> None:
-        """تحديث الوقت المنقضي"""
-        if not self.start_time:
-            self.update("")
-            return
-            
-        try:
-            from datetime import datetime
-            start = datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")
-            now = datetime.now()
-            diff = now - start
-            
-            total_seconds = int(diff.total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            seconds = total_seconds % 60
-            
-            time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
-            self.update(f"[b]SHIFT TIME: {time_str}[/b]")
-        except Exception:
-            self.update("Error")
+    async def on_click(self) -> None:
+        """إزالة حالة الخطأ عند الضغط وفتح الكيبورد"""
+        self.remove_class("invalid")
+        self._is_invalid = False
+        await super().on_click()
 
-    def watch_start_time(self, start_time: Optional[str]) -> None:
-        """مراقبة تغيير وقت البدء"""
-        self.update_timer()
+

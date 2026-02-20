@@ -3,11 +3,13 @@ from textual.containers import Container, Horizontal, Vertical, Grid
 from textual.widgets import Button, Static
 from textual import events
 from ..database import Database
-from ..ui.components import CustomButton, OptionSelector, ArabicInput
-from .window import DraggableWindow
+from .components import CustomButton, OptionSelector, ArabicInput
+from .window import BaseWindow
 
-class ConfirmResetWindow(DraggableWindow):
+class ConfirmResetWindow(BaseWindow):
+    WINDOW_ID = "confirm_reset"
     """نافذة تأكيد المسح"""
+    WINDOW_ID = "confirm_reset"
     def __init__(self, db, callback=None):
         super().__init__(title="RESET DATABASE?")
         self.db = db
@@ -22,14 +24,18 @@ class ConfirmResetWindow(DraggableWindow):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "confirm":
             self.db.reset_database()
+            # 🚀 Broadcast global reset
+            self.post_message(self.DataChanged())
             if self.callback: self.callback()
             self.notify("Database Reset!", severity="warning")
             self.close()
         elif event.button.id == "cancel":
             self.close()
 
-class DatabaseSettingsWindow(DraggableWindow):
+class DatabaseSettingsWindow(BaseWindow):
+    WINDOW_ID = "database_settings"
     """صفحة إدارة قاعدة البيانات"""
+    WINDOW_ID = "database_settings"
     def __init__(self, db, callback=None):
         super().__init__(title="DATABASE MANAGEMENT")
         self.db = db
@@ -51,8 +57,10 @@ class DatabaseSettingsWindow(DraggableWindow):
         elif event.button.id == "back":
             self.close()
 
-class BatchPricesWindow(DraggableWindow):
+class BatchPricesWindow(BaseWindow):
+    WINDOW_ID = "batch_prices"
     """شاشة تحرير الأسعار"""
+    WINDOW_ID = "batch_prices"
     def __init__(self, db):
         super().__init__(title="BATCH PRICES EDITOR")
         self.db = db
@@ -107,15 +115,18 @@ class BatchPricesWindow(DraggableWindow):
                 mart_price = float(self.query_one(f"#mart-{batch_name}").value or 0)
                 rest_price = float(self.query_one(f"#restaurant-{batch_name}").value or 0)
                 self.db.update_batch_price(batch_name, mart_price, rest_price)
+            # 🚀 Broadcast price changes
+            self.post_message(self.DataChanged())
             self.notify("Prices saved!")
             self.close()
         except Exception as e: self.notify(str(e), severity="error")
 
 
-class SettingsWindow(DraggableWindow):
+class SettingsWindow(BaseWindow):
+    WINDOW_ID = "settings"
     """شاشة الإعدادات"""
     def __init__(self, db, callback=None, focus_section=None):
-        super().__init__(title="SETTINGS")
+        super().__init__(title="SETTINGS", width=65)  # 📏 No fixed height — auto-sizes to content
         self.db = db
         self.callback = callback
         self.focus_section = focus_section
@@ -200,6 +211,11 @@ class SettingsWindow(DraggableWindow):
                 'company_wallet': self.settings['company_wallet']
             }
             self.db.update_settings(new_settings)
+            
+            # 🚀 Broadcast globally to all open windows
+            self.post_message(self.GlobalSettingsChanged(new_settings))
+            self.post_message(self.DataChanged()) # Also trigger data refresh
+            
             if self.callback:
                 self.callback()
             self.notify("Settings saved!")

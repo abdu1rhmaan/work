@@ -1144,108 +1144,109 @@ class Database:
     def get_dashboard_status(self) -> Dict[str, Any]:
         """تجميع كافة البيانات اللازمة لعرض الحالة في الهيدر والتايمرات"""
         try:
+            today_iso = datetime.now().strftime("%Y-%m-%d")
+            
+            # Check for active shift
             active = self.get_active_shift()
             
+            # Check for upcoming 'SCHEDULED' shift
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM shifts WHERE shift_date = ? AND status = 'SCHEDULED' ORDER BY scheduled_start ASC LIMIT 1", (today_iso,))
+                next_shift = cursor.fetchone()
+                
+                # Check for just FINISHED shift
+                cursor.execute("SELECT * FROM shifts WHERE shift_date = ? AND status = 'FINISHED' ORDER BY actual_end DESC LIMIT 1", (today_iso,))
+                finished_shift = cursor.fetchone()
+
             if active:
                 if active['break_active']:
-                    # حساب وقت البريك
-                    start = datetime.strptime(active['break_start'], "%Y-%m-%d %H:%M:%S")
-                    now = datetime.now()
-                    elapsed = int((now - start).total_seconds())
-                    
-                    planned = active.get('break_planned_duration')
-                    remaining = None
-                    if planned:
-                        remaining = max(0, (planned * 60) - elapsed)
-                    
-                    return {
-                        'state': 'BREAK',
-                        'shift_id': active['id'],
-                        'elapsed_seconds': elapsed,
-                        'remaining_seconds': remaining,
-                        'planned_mins': planned
-                    }
-                else:
-                    # حساب وقت الوردية
-                    now = datetime.now()
+                    # Calculate break duration
                     try:
-                        date_val = active.get('shift_date')
-                        end_val = active.get('scheduled_end')
-                        
-                        if not date_val or not end_val:
-                            return {'state': 'NO_SHIFT'}
-                            
-                        end_time_str = f"{date_val} {end_val}".strip()
-                        end_dt = None
-                        
-                        # Parse with multiple formats
-                        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %I:%M %p"):
-                            try:
-                                end_dt = datetime.strptime(end_time_str, fmt)
-                                break
-                            except ValueError:
-                                continue
-                                
-                        if not end_dt:
-                            try:
-                                end_dt = datetime.fromisoformat(end_time_str.replace(" ", "T"))
-                            except:
-                                return {'state': 'NO_SHIFT'}
-                            
-                        # التعامل مع الورديات التي تنتهي بعد منتصف الليل
-                        start_val = active.get('scheduled_start')
-                        if start_val:
-                            start_time_str = f"{date_val} {start_val}".strip()
-                            start_dt = None
-                            for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %I:%M %p"):
-                                try:
-                                    start_dt = datetime.strptime(start_time_str, fmt)
-                                    break
-                                except ValueError:
-                                    continue
-                            
-                            if start_dt and end_dt < start_dt:
-                                end_dt += timedelta(days=1)
-
-                        remaining = int((end_dt - now).total_seconds())
+                        start = datetime.strptime(active['break_start'], "%Y-%m-%d %H:%M:%S")
+                        elapsed = int((datetime.now() - start).total_seconds())
+                        planned = active['break_planned_duration'] or 0
+                        return {
+                            "state": "BREAK",
+                            "elapsed_seconds": elapsed,
+                            "remaining_seconds": (planned * 60) - elapsed
+                        }
                     except:
-                        remaining = 0
-                        
-                    return {
-                        'state': 'SHIFT_ACTIVE',
-                        'shift_id': active['id'],
-                        'remaining_seconds': max(0, remaining),
-                        'scheduled_end': active['scheduled_end']
-                    }
-            
-            # إذا لم توجد وردية نشطة، ابحث عن القادمة (فقط لليوم)
-            next_s = self.get_next_shift()
-            if next_s:
-                now = datetime.now()
-                today = now.strftime("%Y-%m-%d")
+                        return {"state": "BREAK", "elapsed_seconds": 0, "remaining_seconds": 0}
                 
-                # التحقق إذا كانت الوردية القادمة لليوم تحديداً
-                if next_s['shift_date'] == today:
+                else:
+                    # Active Shift
                     try:
-                        start_time_str = f"{next_s['shift_date']} {next_s['scheduled_start']}"
-                        try:
-                            start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
-                        except:
-                            start_dt = datetime.fromisoformat(start_time_str)
-                            
-                        wait_seconds = int((start_dt - now).total_seconds())
+                        start = datetime.strptime(active['actual_start'], "%Y-%m-%d %H:%M:%S")
+                        now = datetime.now()
+                        elapsed = int((now - start).total_seconds())
+                        
+                        # Calculate remaining based on scheduled end
+                        remaining = 0
+                        if active['scheduled_end']:
+                             end_dt = None
+                             end_time_str = f"{active['shift_date']} {active['scheduled_end']}".strip()
+                             for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %I:%M %p"):
+                                 try:
+                                     end_dt = datetime.strptime(end_time_str, fmt)
+                                     break
+                                 except ValueError:
+                                     continue
+                             
+                             if end_dt:
+                                 # Handle overnight shifts
+                                 if end_dt < start:
+                                     end_dt += timedelta(days=1)
+                                 remaining = int((end_dt - now).total_seconds())
                         
                         return {
-                            'state': 'NEXT_UPCOMING',
-                            'shift_id': next_s['id'],
-                            'wait_seconds': max(0, wait_seconds),
-                            'scheduled_start': next_s['scheduled_start'],
-                            'shift_date': next_s['shift_date']
+                            "state": "SHIFT_ACTIVE",
+                            "elapsed_seconds": elapsed,
+                            "remaining_seconds": remaining
                         }
                     except Exception as e:
-                        print(f"Error calculating wait time: {e}")
+                        print(f"Error calcing active shift: {e}")
+                        return {"state": "SHIFT_ACTIVE", "elapsed_seconds": 0, "remaining_seconds": 0}
+
+            elif finished_shift and not next_shift:
+                # User just finished a shift today and has no upcoming one immediately
+                return {
+                    "state": "FINISHED",
+                    "elapsed_seconds": 0,
+                    "remaining_seconds": 0
+                }
+
+            elif next_shift:
+                # Calculate wait seconds
+                wait_seconds = 0
+                try:
+                    now = datetime.now()
+                    s_dt = datetime.strptime(f"{next_shift['shift_date']} {next_shift['scheduled_start']}", "%Y-%m-%d %H:%M:%S")
+                    wait_seconds = int((s_dt - now).total_seconds())
+                except:
+                    try:
+                        # Fallback for "%H:%M" format
+                        now = datetime.now()
+                        s_dt = datetime.strptime(f"{next_shift['shift_date']} {next_shift['scheduled_start']}", "%Y-%m-%d %H:%M")
+                        wait_seconds = int((s_dt - now).total_seconds())
+                    except:
+                        pass
                 
-            return {'state': 'NO_SHIFT'}
+                return {
+                    "state": "NEXT_UPCOMING",
+                    "scheduled_start": next_shift['scheduled_start'],
+                    "wait_seconds": wait_seconds,
+                    "elapsed_seconds": 0,
+                    "remaining_seconds": 0 
+                }
+            
+            return {"state": "NO_SHIFT", "elapsed_seconds": 0, "remaining_seconds": 0}
+
+        except Exception as e:
+            print(f"Error getting dashboard status: {e}")
+            return {"state": "ERROR", "elapsed_seconds": 0, "remaining_seconds": 0}
+
         except Exception as e:
             print(f"Error get_dashboard_status: {e}")
             return {'state': 'NO_SHIFT'}
@@ -1387,7 +1388,7 @@ class Database:
                             scheduled_end += timedelta(days=1)
 
                         if now >= (scheduled_end + absent_grace):
-                            cursor.execute("UPDATE shifts SET status = 'ABSENT' WHERE id = ?", (shift['id'],))
+                             cursor.execute("UPDATE shifts SET status = 'ABSENT' WHERE id = ?", (shift['id'],))
                     except Exception as ex:
                         print(f"Error checking absent status for shift {shift['id']}: {ex}")
                 conn.commit()

@@ -1,16 +1,17 @@
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Label, Input, ListView, ListItem, OptionList, Button
-from textual import events
-from ..ui.components import CustomButton, WalletDisplay, ArabicInput
+from textual import events, on
+from .components import CustomButton, WalletDisplay, ArabicInput
 from ..utils import format_arabic
 from typing import Optional, Callable
-from .window import DraggableWindow
+from .window import BaseWindow
 
-class EditTransactionWindow(DraggableWindow):
+class EditTransactionWindow(BaseWindow):
+    WINDOW_ID = "edit_transaction"
     """نافذة تعديل المعاملة"""
     def __init__(self, db, txn_id: int, current_desc: str, current_amount: float, current_type: str, callback=None):
-        super().__init__(title="EDIT TRANSACTION", id="edit-txn-window")
+        super().__init__(title="EDIT TRANSACTION", id="edit-txn-window", width=55)  # auto height
         self.db = db
         self.txn_id = txn_id
         self.current_desc = current_desc
@@ -62,6 +63,8 @@ class EditTransactionWindow(DraggableWindow):
             amount = float(amount_str)
             if self.db.update_expense(self.txn_id, desc, amount, self.txn_type):
                 self.notify("Transaction updated!")
+                # 🚀 Broadcast update
+                self.post_message(self.DataChanged())
                 if self.callback: self.callback()
                 self.close()
             else:
@@ -69,10 +72,11 @@ class EditTransactionWindow(DraggableWindow):
         except ValueError:
             self.notify("Invalid amount", severity="error")
 
-class ConfirmDeleteWindow(DraggableWindow):
+class ConfirmDeleteWindow(BaseWindow):
+    WINDOW_ID = "confirm_delete"
     """نافذة تأكيد الحذف"""
     def __init__(self, db, txn_id: int, callback=None):
-        super().__init__(title="DELETE TRANSACTION?", id="confirm-delete-window")
+        super().__init__(title="DELETE TRANSACTION?", id="confirm-delete-window", width=50)  # auto height
         self.db = db
         self.txn_id = txn_id
         self.callback = callback
@@ -87,6 +91,8 @@ class ConfirmDeleteWindow(DraggableWindow):
         if event.button.id == "confirm-delete":
             if self.db.delete_expense(self.txn_id):
                 self.notify("Transaction deleted!")
+                # 🚀 Broadcast update
+                self.post_message(self.DataChanged())
                 if self.callback: self.callback()
                 self.close()
             else:
@@ -95,11 +101,12 @@ class ConfirmDeleteWindow(DraggableWindow):
         elif event.button.id == "cancel-delete":
             self.close()
 
-class TransactionDetailsWindow(DraggableWindow):
+class TransactionDetailsWindow(BaseWindow):
+    WINDOW_ID = "transaction_details"
     """نافذة تفاصيل المعاملة"""
     def __init__(self, db, txn: dict, callback=None):
         title = "TRANSACTION DETAILS"
-        super().__init__(title=title, id="txn-details-window")
+        super().__init__(title=title, id="txn-details-window", width=50)  # auto height
         self.db = db
         self.txn = txn
         self.callback = callback
@@ -146,6 +153,7 @@ class ExpenseRow(ListItem):
     def __init__(self, expense: dict, **kwargs):
         super().__init__(**kwargs)
         self.expense = expense
+        self.add_class("expense-row")
 
     def compose(self) -> ComposeResult:
         txn_type = self.expense.get('type', 'OUT')
@@ -156,12 +164,14 @@ class ExpenseRow(ListItem):
             yield Label(self.expense['datetime'][11:16], classes="expense-date")
             desc = self.expense.get('description', 'No Desc')
             yield Label(format_arabic(desc), classes="expense-desc")
+            # The color is now controlled by CSS .txn-in / .txn-out classes
             yield Label(f"{txn_char} {self.expense.get('amount', 0.0):.2f}", classes="expense-amount")
 
-class WalletWindow(DraggableWindow):
+class WalletWindow(BaseWindow):
+    WINDOW_ID = "wallet"
     """نافذة المحفظة الرئيسية"""
     def __init__(self, db, on_close: Optional[Callable] = None):
-        super().__init__(title="WALLET")
+        super().__init__(title="WALLET", width=75, height=30)  # 💌 Keep height for scrollable list
         self.db = db
         self.on_close = on_close
         self.txn_type = 'OUT'
@@ -173,14 +183,12 @@ class WalletWindow(DraggableWindow):
         with Vertical(id="wallet-content"):
             self.stats_display = Static(id="wallet-stats-bar")
             yield self.stats_display
-
-            with Horizontal(id="wallet-info-row"):
+            
+            # Combine balances into a single horizontal row
+            with Horizontal(id="wallets-horizontal"):
                 yield WalletDisplay("Personal Balance", settings['personal_wallet'], id="wallet-personal")
                 yield WalletDisplay("Company Balance", settings['company_wallet'], id="wallet-company")
             
-            yield Static(classes="divider")
-            
-            yield Static("Record New Transaction", classes="section-title")
             with Vertical(id="expense-form"):
                 with Horizontal(id="txn-type-toggle"):
                     yield CustomButton("Type: EXPENSE", id="toggle-txn-type", custom_width=16)
@@ -191,9 +199,6 @@ class WalletWindow(DraggableWindow):
                 with Horizontal(id="expense-buttons"):
                     yield CustomButton("Save", id="save-expense", custom_width=12)
             
-            yield Static(classes="divider")
-            
-            yield Static("Transaction History", classes="section-title")
             self.expense_list = ListView(id="expense-list")
             yield self.expense_list
             
@@ -203,25 +208,35 @@ class WalletWindow(DraggableWindow):
         # Suggestions (Overlay handled by OptionList usually, but inside window might be tricky)
         # We place it here; exact positioning depends on CSS or Textual's overlay
         self.suggestions_list = OptionList(id="suggestion-list")
-        self.suggestions_list.display = False
+        self.suggestions_list.display = "none"
         yield self.suggestions_list
 
     def on_mount(self) -> None:
-        self.load_data()
+        self.call_after_refresh(self._do_load_data)
 
-    def load_data(self) -> None:
+    async def _do_load_data(self):
+        await self.load_data()
+
+    async def load_data(self) -> None:
         stats = self.db.get_wallet_stats()
         stats_text = f"In: [b green]{stats['total_in']:.2f}[/] | Out: [b red]{stats['total_out']:.2f}[/] | Net: [b]{stats['net']:.2f}[/]"
         self.query_one("#wallet-stats-bar").update(stats_text)
 
-        expenses = self.db.get_all_expenses(limit=20)
-        self.expense_list.clear()
-        for exp in expenses:
-            self.expense_list.append(ExpenseRow(exp))
+        expenses = self.db.get_all_expenses(limit=15)
+        await self.expense_list.clear() # Making this async
+        to_mount = [ExpenseRow(exp) for exp in expenses]
+        await self.expense_list.mount(*to_mount)
             
         settings = self.db.get_settings()
         self.query_one("#wallet-personal").value = settings['personal_wallet']
         self.query_one("#wallet-company").value = settings['company_wallet']
+
+    # 🚀 REAL-TIME UPDATES: Listen for changes from other windows
+    @on(BaseWindow.OrderAdded)
+    @on(BaseWindow.DataChanged)
+    async def handle_data_update(self) -> None:
+        """Update transaction list instantly when an order or txn is added elsewhere"""
+        await self.load_data()
 
     def on_list_view_selected(self, message: ListView.Selected) -> None:
         if isinstance(message.item, ExpenseRow):
@@ -245,17 +260,17 @@ class WalletWindow(DraggableWindow):
                     self.suggestions_list.clear_options()
                     for s in suggestions:
                         self.suggestions_list.add_option(format_arabic(s))
-                    self.suggestions_list.display = True
+                    self.suggestions_list.display = "block"
                 else:
-                    self.suggestions_list.display = False
+                    self.suggestions_list.display = "none"
             else:
-                self.suggestions_list.display = False
+                self.suggestions_list.display = "none"
 
     async def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         if event.option_list.id == "suggestion-list":
             self._selecting_suggestion = True
             desc_input = self.query_one("#expense-desc")
-            self.suggestions_list.display = False
+            self.suggestions_list.display = "none"
             self.suggestions_list.clear_options()
             desc_input.value = str(event.option.prompt)
             self.query_one("#expense-amount").focus()
@@ -290,8 +305,11 @@ class WalletWindow(DraggableWindow):
         description = desc_input.value.strip()
         amount_str = amount_input.value.strip()
         
-        if not description or not amount_str:
-             self.notify("Required fields missing", severity="error")
+        is_desc_valid = desc_input.validate_input()
+        is_amount_valid = amount_input.validate_input()
+        
+        if not is_desc_valid or not is_amount_valid:
+             self.notify("Please fill required fields", severity="error")
              return
 
         try:
@@ -300,8 +318,10 @@ class WalletWindow(DraggableWindow):
                  self.notify("Saved!")
                  desc_input.value = ""
                  amount_input.value = ""
-                 self.suggestions_list.display = False
-                 self.load_data()
+                 self.suggestions_list.display = "none"
+                 await self.load_data()
+                 # 🚀 Broadcast my own update too
+                 self.post_message(self.DataChanged())
              else:
                  self.notify("Error saving", severity="error")
         except ValueError:

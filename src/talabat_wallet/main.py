@@ -1,10 +1,20 @@
 from __future__ import annotations
 import sys
+import os
+
+# Add the 'src' directory to the Python path to allow running directly
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.abspath(os.path.join(current_dir, '..'))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
 from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Header, Footer
-from .ui2.dashboard import DashboardScreen
+
+from talabat_wallet.ui2.dashboard import DashboardScreen
+from talabat_wallet.ui2.window import BaseWindow
 
 class TalabatWalletApp(App):
     """تطبيق المحفظة الرئيسي"""
@@ -13,6 +23,7 @@ class TalabatWalletApp(App):
     
     def __init__(self):
         super().__init__()
+        BaseWindow.reset_registry()
         self.dark = True  # استخدام الوضع المظلم للتوافق مع TCSS
         
     def on_mount(self) -> None:

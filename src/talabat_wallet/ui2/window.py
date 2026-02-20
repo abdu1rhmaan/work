@@ -25,7 +25,7 @@ class CloseButton(Static):
     }
 
     CloseButton:hover {
-        background: #e53935;
+        background: #e74c3c;
         color: #ffffff;
     }
     """
@@ -35,66 +35,40 @@ class CloseButton(Static):
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
         event.stop()
-        self.styles.background = "#8b0000"  # Dark Red
-        self.styles.color = "#000000"       # Black X
+        self.styles.background = "#7b0000"
+        self.styles.color = "#ffcccc"
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         event.stop()
         self.styles.background = "#c0392b"
         self.styles.color = "#ffffff"
-        if isinstance(self.parent, WindowHeader):
-            if isinstance(self.parent.parent, DraggableWindow):
-                self.parent.parent.close()
+        # Find the window ancestor safely
+        window = next((p for p in self.ancestors_with_self if isinstance(p, BaseWindow)), None)
+        if window:
+            window.close()
 
     def on_click(self, event: events.Click) -> None:
         event.stop()
         event.prevent_default()
 
+class ResizeHandle(Static):
+    """Small handle at bottom-right for resizing."""
+    def __init__(self):
+        super().__init__("◢", id="resize_handle")
 
-def log_debug(message: str) -> None:
-    """Helper to write debug logs to a file in the project root."""
-    import os
-    try:
-        # Save to the root of the project (~/work) using an absolute path
-        # This ensures it's created even if the relative CWD is weird.
-        project_root = os.getcwd()
-        if "src" in project_root:
-            project_root = os.path.dirname(project_root.split("src")[0])
-        
-        log_path = os.path.join(project_root, "debug_touch.log")
-        with open(log_path, "a", encoding="utf-8") as f:
-            import datetime
-            ts = datetime.datetime.now().strftime("%H:%M:%S")
-            f.write(f"[{ts}] {message}\n")
-    except:
-        pass
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        event.stop()
+        if isinstance(self.parent, BaseWindow):
+            self.parent.start_resizing(event.screen_x, event.screen_y)
+
+
+
 
 # ================= HEADER ================= #
 
 class WindowHeader(Horizontal):
 
-    DEFAULT_CSS = """
-    WindowHeader {
-        dock: top;
-        width: 100%;
-        height: 3; /* Increased for finger comfort */
-        background: #1c2228; /* Unified Navy */
-        color: #c9d1d9;
-        layout: horizontal;
-        padding: 0 1;
-        margin: 0;
-        border-bottom: solid #1a2030;
-        content-align: left middle;
-    }
-
-    WindowHeader .window-title {
-        width: 1fr;
-        height: 3;
-        content-align: left middle;
-        text-style: bold;
-        color: #dce6f0;
-    }
-    """
+    DEFAULT_CSS = "" # Styles move to styles.tcss
 
     def __init__(self, title: str):
         super().__init__()
@@ -105,131 +79,149 @@ class WindowHeader(Horizontal):
         yield CloseButton()
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        # Visual feedback for debugging
-        self.styles.background = "#2a3441"
-        log_debug(f"Header: mouse_down at {event.screen_x}, {event.screen_y}")
-
-        # Check if hitting the close button area
         widget, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
         if widget and (widget.id == "close_btn" or isinstance(widget, CloseButton)):
-            log_debug("Header: Close button detected area, ignoring drag")
             return
 
         event.stop()
-        # event.prevent_default() # Removed to see if it helps Termux pass the move
+        event.prevent_default()
 
-        if isinstance(self.parent, DraggableWindow):
-            log_debug(f"Header: Starting parent drag at {event.screen_x}, {event.screen_y}")
+        if isinstance(self.parent, BaseWindow):
             self.parent.start_dragging(event.screen_x, event.screen_y)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
-        # Reset visual feedback
-        self.styles.background = "#1c2228"
-        log_debug(f"Header: mouse_up at {event.screen_x}, {event.screen_y}")
+        pass
 
 
 # ================= WINDOW ================= #
 
-class DraggableWindow(Vertical):
+class BaseWindow(Vertical):
+    """Base class for all draggable/resizable windows with Reactive UI support."""
 
-    DEFAULT_CSS = """
-    DraggableWindow {
-        width: 60%;
-        height: auto;
-        max-height: 85vh;
-        min-height: 15%;
+    # ── WINDOW_ID REGISTRY ────────────────────────────────────────────────────
+    WINDOW_ID: str = ""  # Every concrete subclass MUST override this.
+    _registry: dict[str, type] = {}
 
-        background: #1c2228; /* Unified Navy Background */
-        /* External-feeling border - heavy and wrapping */
-        border: heavy #1a2030;
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.__name__ == "BaseWindow":
+            return
+        if not cls.WINDOW_ID:
+            raise RuntimeError(f"Class {cls.__name__} must define a non-empty WINDOW_ID.")
+        if cls.WINDOW_ID in BaseWindow._registry:
+            existing = BaseWindow._registry[cls.WINDOW_ID]
+            if existing is not cls:
+                raise RuntimeError(
+                    f"Duplicate WINDOW_ID '{cls.WINDOW_ID}': "
+                    f"already registered by {existing.__name__}"
+                )
+        BaseWindow._registry[cls.WINDOW_ID] = cls
 
-        padding: 0;
-        margin: 0;
-        display: block;
-        position: absolute;
-        box-sizing: border-box;
+    @staticmethod
+    def reset_registry() -> None:
+        """Clear the WINDOW_ID registry. Call once at App startup."""
+        BaseWindow._registry.clear()
 
-        layer: overlay;
-    }
+    def get_window_id(self) -> str:
+        """Return this window's WINDOW_ID."""
+        return self.__class__.WINDOW_ID
 
-    DraggableWindow:focus-within, DraggableWindow.is-dragging {
-        border: heavy #00d2ff; /* Ultra-Radiant glowing cyan */
-    }
+    # ── MESSAGES ──────────────────────────────────────────────────────────────
 
-    .window-content {
-        width: 100%;
-        max-height: 80vh;
-        padding: 1;
-        overflow-y: auto;
-        background: transparent;
-        /* Subtle sectional outlining (Takh-teet) */
-        border: solid #ffffff 5%; 
-    }
+    class GlobalSettingsChanged(Message):
+        """Broadcasted when settings (mode, batch, etc.) change."""
+        def __init__(self, settings: dict):
+            self.settings = settings
+            super().__init__()
 
-    /* ===== TABLE HEADER (Unified) ===== */
-    .table-header {
-        height: 1;
-        background: transparent;
-        color: #9ed0ff;
-        text-style: bold;
-        padding: 0 1;
-        border-bottom: solid #00d2ff 20%;
-        content-align: left middle;
-    }
+    class DataChanged(Message):
+        """Broadcasted when any major database change occurs."""
+        pass
 
-    .table-header Static {
-        height: 1;
-        content-align: left middle;
-        color: #9ed0ff;
-        text-style: bold;
-    }
+    class OrderAdded(Message):
+        """Broadcasted when a new order is successfully added."""
+        pass
 
-    .no-data-msg {
-        width: 100%;
-        content-align: center middle;
-        padding: 2;
-        color: #2e3d4f;
-    }
+    class ShiftUpdated(Message):
+        """Broadcasted when shift status or data changes."""
+        pass
 
-    /* ===== TABLE ROWS (Unified) ===== */
-    .table-row {
-        height: 1;
-        padding: 0 1;
-        background: transparent;
-        color: #c0cdd8;
-        border-bottom: solid #ffffff 5%;
-    }
+    class WindowResized(Message):
+        """Broadcasted when a focused window is resized."""
+        def __init__(self, title: str, width: int, height: int):
+            super().__init__()
+            self.title = title
+            self.width = width
+            self.height = height
 
-    .table-row:hover {
-        background: #2a3441; /* Slightly lighter navy hover */
-        color: #ffffff;
-    }
-
-    .table-row-alt {
-        background: rgba(0, 0, 0, 0.05); /* Very subtle alt */
-    }
-    """
+    DEFAULT_CSS = ""  # Styles moved to styles.tcss
 
     class Closed(Message):
         pass
 
-    def __init__(self, title="Window", id=None, classes=None):
+    def __init__(self, title="Window", id=None, classes=None, width=None, height=None):
         super().__init__(id=id, classes=classes)
         self.can_focus = True
         self.window_title = title
-        self.drag_start = None
-        self.start_offset = None
         self._drag_start_time = 0
+        self.drag_start = None
+        self.resize_start = None
+        self.start_offset = None
+        self.start_size = None
+        
+        # 📏 Logic: If specific size is NOT provided, use 'auto' for dynamic wrapping
+        self.styles.width = width if width is not None else "auto"
+        self.styles.height = height if height is not None else "auto"
+
+    # ── LIFECYCLE HOOKS (empty stubs — override freely in subclasses) ─────────
+
+    def on_window_open(self) -> None: pass
+    def on_window_close(self) -> None: pass
+    def on_window_focus(self) -> None: pass
+    def on_window_blur(self) -> None: pass
+
+    # ── TEXTUAL LIFECYCLE ─────────────────────────────────────────────────────
+
+    async def on_mount(self) -> None:
+        """Handle window mounting."""
+        self.on_window_open()
+        if self.has_focus_within:
+            self.post_message(self.WindowResized(self.window_title, self.size.width, self.size.height))
+
+    def on_resize(self, event: events.Resize) -> None:
+        w, h = self.size
+        if self.has_focus_within:
+            self.post_message(self.WindowResized(self.window_title, w, h))
+
+    def on_focus(self, event: events.Focus) -> None:
+        """Inform dashboard when this window becomes the active focus."""
+        self.on_window_focus()
+        self.post_message(self.WindowResized(self.window_title, self.size.width, self.size.height))
+
+    def on_blur(self, event: events.Blur) -> None:
+        """Clear size info when window loses focus."""
+        self.on_window_blur()
+        self.post_message(self.WindowResized("", 0, 0))
 
     def compose(self) -> ComposeResult:
+        """Build window shell. Calls compose_content() — subclasses override compose_content ONLY."""
         yield WindowHeader(self.window_title)
         with Vertical(classes="window-content"):
-            yield from self.compose_content()
+            result = self.compose_content()
+            if result is None:
+                raise RuntimeError(
+                    f"BaseWindow.compose_content() returned None in window '{self.get_window_id()}'. "
+                    f"Use 'yield' or return a generator."
+                )
+            yield from result
+        yield ResizeHandle()
 
     def compose_content(self) -> ComposeResult:
-        yield Static("No data found", classes="no-data-msg")
+        """Override in subclasses to provide window content."""
+        raise RuntimeError(f"Window '{self.get_window_id()}' must override compose_content()")
 
     def close(self) -> None:
+        self.on_window_close()
         if self.drag_start:
             self.stop_dragging()
         self.post_message(self.Closed())
@@ -238,26 +230,21 @@ class DraggableWindow(Vertical):
     # ---------- DRAG ---------- #
 
     def start_dragging(self, screen_x: int, screen_y: int) -> None:
-        import time
-        log_debug(f"Window: start_dragging at {screen_x}, {screen_y}")
         self.drag_start = (screen_x, screen_y)
         self.start_offset = (
             self.styles.offset.x.value,
             self.styles.offset.y.value,
         )
-        self._drag_start_time = time.time()
         self.add_class("is-dragging")
         self.capture_mouse()
 
         if self.parent:
             self.parent.move_child(self, after=self.parent.children[-1])
-        self.focus()
 
     def handle_dragging(self, event: events.MouseMove) -> None:
         if self.drag_start and self.start_offset:
             dx = event.screen_x - self.drag_start[0]
             dy = event.screen_y - self.drag_start[1]
-            # log_debug(f"Window: handle_dragging move {dx}, {dy}")
             self.styles.offset = (
                 int(self.start_offset[0] + dx),
                 int(self.start_offset[1] + dy),
@@ -267,55 +254,124 @@ class DraggableWindow(Vertical):
     def _dragging(self) -> bool:
         return self.drag_start is not None
 
+    def on_key(self, event: events.Key) -> None:
+        """Move the window using arrow keys."""
+        step = 2
+        moved = False
+        ox, oy = self.styles.offset.x.value, self.styles.offset.y.value
+
+        if event.key == "up":
+            oy -= step
+            moved = True
+        elif event.key == "down":
+            oy += step
+            moved = True
+        elif event.key == "left":
+            ox -= step
+            moved = True
+        elif event.key == "right":
+            ox += step
+            moved = True
+
+        if moved:
+            self.styles.offset = (ox, oy)
+            event.stop()
+
     def stop_dragging(self) -> None:
-        log_debug("Window: stop_dragging")
         self.drag_start = None
         self.start_offset = None
         self.remove_class("is-dragging")
         self.release_mouse()
 
+    # ---------- RESIZE ---------- #
+
+    def start_resizing(self, screen_x: int, screen_y: int) -> None:
+        self.resize_start = (screen_x, screen_y)
+        # Using .region to get current rendered size
+        self.start_size = (self.region.width, self.region.height)
+        self.add_class("is-resizing")
+        self.capture_mouse()
+        
+        # 🔓 Allow resizing beyond initial max constraints
+        self.styles.max_width = None
+        self.styles.max_height = None
+
+    def handle_resizing(self, event: events.MouseMove) -> None:
+        if self.resize_start and self.start_size:
+            dx = event.screen_x - self.resize_start[0]
+            dy = event.screen_y - self.resize_start[1]
+            
+            # 🛡️ Minimums to prevent Range Error, no upper limits
+            new_w = max(35, self.start_size[0] + dx)
+            new_h = max(8, self.start_size[1] + dy)
+            
+            self.styles.width = new_w
+            self.styles.height = new_h
+
+    def stop_resizing(self) -> None:
+        self.resize_start = None
+        self.start_size = None
+        self.remove_class("is-resizing")
+        self.release_mouse()
+
+    @property
+    def _resizing(self) -> bool:
+        return self.resize_start is not None
+
     # ---------- MOUSE EVENTS ---------- #
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        log_debug(f"Window: on_mouse_down at {event.screen_x}, {event.screen_y}")
-        
-        # Start Dragging Immediately on Down (Continuous Mode)
-        rel_y = event.screen_y - self.region.y
-        if rel_y <= 4:
-            self.start_dragging(event.screen_x, event.screen_y)
-        
-        event.stop()
-        event.prevent_default()
-
+        # Bring to front
         if self.parent and self.parent.children[-1] != self:
             self.parent.move_child(self, after=self.parent.children[-1])
-        self.focus()
+
+        # Focus window itself only if nothing inside already has focus
+        if not self.has_focus_within:
+            self.focus()
+
+        # Header zone drag (top 3 rows): stop + prevent so content doesn't shift
+        rel_y = event.screen_y - self.region.y
+        if rel_y <= 3:
+            widget_at, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
+            if not (widget_at and (widget_at.id == "close_btn" or isinstance(widget_at, CloseButton))):
+                self.start_dragging(event.screen_x, event.screen_y)
+                event.stop()
+                event.prevent_default()
+        # DO NOT stop events for body clicks — let Input/Button receive them normally
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
         if self._dragging:
-            # log_debug(f"Window: on_mouse_move dragging to {event.screen_x}, {event.screen_y}")
             self.handle_dragging(event)
+        elif self._resizing:
+            self.handle_resizing(event)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
-        import time
-        log_debug(f"Window: on_mouse_up at {event.screen_x}, {event.screen_y}")
-        
         if self._dragging:
-            # Shield against rapid Touch Down/Up (within 0.1s at same spot)
-            duration = time.time() - self._drag_start_time
-            log_debug(f"Window: Drag duration: {duration:.3f}s")
-            
-            # If it's a super-fast click, we still stop, but we trust the user.
             self.stop_dragging()
+        elif self._resizing:
+            self.stop_resizing()
 
     def on_click(self, event: events.Click) -> None:
-        event.stop()
-        event.prevent_default()
+        """Bring window to front and focus if nothing inside is focused."""
+        widget_at, _ = getattr(self.app, "screen", self.app).get_widget_at(event.screen_x, event.screen_y)
+        if widget_at is self:
+            event.stop() # 🛑 Prevent dashboard from receiving this click and clearing focus!
+        if self.parent:
+            self.parent.move_child(self, after=self.parent.children[-1])
+        if not self.has_focus_within:
+            self.focus()
+
+    def on_base_window_global_settings_changed(self, message: GlobalSettingsChanged) -> None:
+        """Reactive UI: Refresh window content when settings change globally."""
+        self.refresh_ui(message.settings)
+
+    def refresh_ui(self, settings: dict) -> None:
+        """Override in subclasses to perform reactive updates (e.g. AddOrderWindow field visibility)."""
+        pass
 
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
-        event.stop()
-        event.prevent_default()
+        # Let scroll propagate naturally — don't stop it
+        pass
 
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
-        event.stop()
-        event.prevent_default()
+        pass

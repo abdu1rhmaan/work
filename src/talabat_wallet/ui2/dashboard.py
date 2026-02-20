@@ -1,110 +1,17 @@
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.containers import Container, Horizontal, Vertical, Grid
-from textual.widgets import Header, Footer, Static
-from textual import events
+from textual.widgets import Header, Static
+from textual import events, on
 from datetime import datetime
 from ..database import Database
 from ..utils import format_arabic
-from ..ui.components import CustomButton, WalletDisplay, ModeDisplay, BatchDisplay, ShiftTimerDisplay
+from .components import CustomButton, WalletDisplay, ModeDisplay, BatchDisplay
 # Import base window only
-from .window import DraggableWindow
+from .window import BaseWindow
 
 class DashboardScreen(Screen):
     """شاشة لوحة التحكم الرئيسية (MDI Version)"""
-    
-    CSS = """
-    #dashboard {
-        layout: vertical;
-        padding: 1;
-        background: $surface;
-    }
-
-    #desktop {
-        width: 100%;
-        height: 1fr;
-        position: relative;
-        overflow: hidden; 
-    }
-
-    #dashboard-layout {
-        width: 100%;
-        height: auto;
-        layout: vertical;
-        align: center top;
-    }
-
-    /* --- Status Strip (Mode, Shift, Batch) --- */
-    #info-row {
-        width: 100%;
-        height: 3;
-        margin-bottom: 1;
-        background: $primary-darken-2;
-        border: panel $primary;
-    }
-
-    #mode-display {
-        width: 1fr;
-        height: 100%;
-        content-align: center middle;
-        color: white;
-        text-style: bold;
-    }
-
-    #batch-display {
-        width: 1fr;
-        height: 100%;
-        content-align: center middle;
-        color: white;
-        text-style: bold;
-    }
-    
-    .status-header {
-        width: 1fr;
-        height: 100%;
-        content-align: center middle;
-        text-style: bold;
-        color: white;
-    }
-    
-    .status-header:hover {
-        text-style: underline bold;
-        color: $accent;
-    }
-
-    /* --- Wallets Strip --- */
-    #wallets-row {
-        width: 100%;
-        height: 3;
-        margin-bottom: 1;
-    }
-    
-    /* Wallet status colors */
-    .credit-balance { color: $success; }
-    .debt-balance { color: $error; }
-
-    /* --- Buttons Grid --- */
-    #main-buttons {
-        layout: grid;
-        grid-size: 2;
-        grid-gutter: 1 2;
-        padding: 0;
-        width: 100%;
-        height: auto;
-        max-height: 80%;
-        align-horizontal: center;
-        border: hidden;
-    }
-
-    /* --- Stats Footer --- */
-    #stats-container {
-        dock: bottom;
-        height: 8;
-        background: $panel;
-        border-top: solid $primary;
-        padding: 1;
-    }
-    """
     
     def __init__(self):
         super().__init__()
@@ -139,13 +46,7 @@ class DashboardScreen(Screen):
                     yield CustomButton("Settlement", id="btn_settlement")
                     yield CustomButton("Settings", id="btn_settings")
                     yield CustomButton("Exit", id="btn_exit")
-                
-                # 4. Stats
-                with Container(id="stats-container"):
-                    yield Static(id="stats-display")
-        
-        yield Footer()
-    
+
     def on_mount(self) -> None:
         """تهيئة الشاشة"""
         self.db.check_auto_updates()
@@ -156,6 +57,38 @@ class DashboardScreen(Screen):
         self.set_interval(60, self.db.check_auto_updates)
         self.set_focus(None)
 
+    @on(BaseWindow.WindowResized)
+    def handle_window_resize_msg(self, event: BaseWindow.WindowResized) -> None:
+        """Live feedback of focused window size in footer."""
+        pass
+
+    @on(BaseWindow.OrderAdded)
+    @on(BaseWindow.DataChanged)
+    @on(BaseWindow.ShiftUpdated)
+    async def handle_data_update(self, event=None) -> None:
+        """Update dashboard stats instantly when data is modified in a window"""
+        # 🏎️ Optimize: Debounce stats update
+        self.set_timer(0.2, self.update_stats)
+        self.update_wallets()
+        
+        # 📣 Forward to ALL open windows so they refresh siblings
+        sender = getattr(event, "sender", None)
+        for window in self.query(BaseWindow):
+            if window != sender:
+                window.post_message(event)
+
+    @on(BaseWindow.GlobalSettingsChanged)
+    def handle_settings_update(self, event: BaseWindow.GlobalSettingsChanged) -> None:
+        """Reactive UI: Handle settings changes (mode, batch) instantly"""
+        self.settings = event.settings
+        self.update_stats()
+        
+        # 📣 Forward to peers
+        sender = getattr(event, "sender", None)
+        for window in self.query(BaseWindow):
+            if window != sender:
+                window.post_message(event)
+
     def on_show(self) -> None:
         self.set_focus(None)
     
@@ -165,7 +98,10 @@ class DashboardScreen(Screen):
         status_widget = self.query_one("#shift-status-header")
         state = data.get('state')
         
-        if state == 'BREAK':
+        if state == 'FINISHED':
+             status_widget.update(f"🏁 [white]Shift Finished[/] — See History")
+
+        elif state == 'BREAK':
             elapsed = data['elapsed_seconds']
             remaining = data.get('remaining_seconds')
             m_e, s_e = divmod(elapsed, 60)
@@ -177,17 +113,27 @@ class DashboardScreen(Screen):
 
         elif state == 'SHIFT_ACTIVE':
             rem = data['remaining_seconds']
-            if rem < 0: rem = 0
-            m, s = divmod(rem, 60)
-            h, m = divmod(m, 60)
-            timer_str = f"{h:02d}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
-            status_widget.update(f"✅ [green]Shift Active[/] — Ends in [b]{timer_str}[/]")
+            if rem <= 0:
+                abs_rem = abs(rem)
+                m, s = divmod(abs_rem, 60)
+                h, m = divmod(m, 60)
+                status_widget.update(f"🏁 [white]Finished[/] — Wrap up")
+            else:
+                m, s = divmod(rem, 60)
+                h, m = divmod(m, 60)
+                timer_str = f"{h:02d}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
+                status_widget.update(f"✅ [green]Shift Active[/] — Ends in [b]{timer_str}[/]")
             
         elif state == 'NEXT_UPCOMING':
             wait = data['wait_seconds']
             if wait > 3600:
                 start_time_str = data['scheduled_start']
                 status_widget.update(f"⏳ [cyan]Next Shift[/] — Starts at [b]{start_time_str}[/]")
+            elif wait < 0:
+                abs_wait = abs(wait)
+                hours_late = abs_wait // 3600
+                m_late = (abs_wait % 3600) // 60
+                status_widget.update(f"❌ [error]Late by {int(hours_late)}h {int(m_late)}m[/]")
             else:
                 h_w, m_w = divmod(wait // 60, 60)
                 s_w = wait % 60
@@ -196,27 +142,24 @@ class DashboardScreen(Screen):
         else:
             status_widget.update("😴 [white]No Shift Today[/]")
 
-    async def on_draggable_window_closed(self, message: DraggableWindow.Closed) -> None:
+    async def on_base_window_closed(self, message: BaseWindow.Closed) -> None:
         """Handle window closing."""
         self.call_after_refresh(self.update_window_mode)
 
     def update_window_mode(self) -> None:
-        """Update window-mode class and interactivity based on open windows."""
-        desktop = self.query_one("#desktop")
-        windows = desktop.query(DraggableWindow)
-        is_window_open = len(windows) > 0
-        
-        if is_window_open:
+        """Update window-mode class based on open windows."""
+        windows = self.query(BaseWindow)
+        if len(windows) > 0:
             self.add_class("window-mode")
         else:
             self.remove_class("window-mode")
 
-    def open_window(self, window: DraggableWindow) -> None:
-        """Open a window on the desktop."""
-        desktop = self.query_one("#desktop")
-        desktop.mount(window)
-        count = len(desktop.query(DraggableWindow))
-        window.styles.offset = (2 + (count * 3), 2 + (count * 3))
+    def open_window(self, window: BaseWindow) -> None:
+        """Open a window — mounted at Screen level so it floats above everything."""
+        count = len(self.query(BaseWindow))
+        self.mount(window)
+        # Offset each new window slightly so they cascade
+        window.styles.offset = (4 + (count * 3), 3 + (count * 2))
         window.focus()
         self.update_window_mode()
         
@@ -224,6 +167,11 @@ class DashboardScreen(Screen):
         """Handle clicks on the dashboard and background focus"""
         # 1. Check if we should clear focus
         target, _ = self.app.screen.get_widget_at(event.screen_x, event.screen_y)
+        
+        # If click is on a window or its children, DO NOT clear focus
+        if any(isinstance(p, BaseWindow) for p in target.ancestors_with_self):
+            return
+
         if target in [self, self.query_one("#desktop"), self.query_one("#dashboard-layout")]:
             self.set_focus(None)
             return
@@ -233,10 +181,10 @@ class DashboardScreen(Screen):
         
         if widget_id == "mode-display":
              from .settings import SettingsWindow
-             self.open_window(SettingsWindow(self.db, callback=self.update_wallets, focus_section="mode"))
+             self.open_window(SettingsWindow(self.db, callback=self.handle_data_update, focus_section="mode"))
         elif widget_id == "batch-display":
              from .settings import SettingsWindow
-             self.open_window(SettingsWindow(self.db, callback=self.update_wallets, focus_section="batch"))
+             self.open_window(SettingsWindow(self.db, callback=self.handle_data_update, focus_section="batch"))
         elif widget_id == "shift-status-header":
              from .shift import ShiftDetailsWindow, DayShiftsWindow
              status = self.db.get_dashboard_status()
@@ -246,7 +194,7 @@ class DashboardScreen(Screen):
              if state in ['SHIFT_ACTIVE', 'BREAK']:
                  curr = self.db.get_active_shift()
                  if curr:
-                     self.open_window(ShiftDetailsWindow(self.db, curr, self.update_shift_status))
+                     self.open_window(ShiftDetailsWindow(self.db, curr, self.handle_data_update))
                  else:
                      self.notify("No active shift", severity="error")
              else:
@@ -254,12 +202,12 @@ class DashboardScreen(Screen):
                  shifts = self.db.get_shifts_by_date(today_str)
                  scheduled = next((s for s in shifts if s['status'] == 'SCHEDULED'), None)
                  if scheduled:
-                      self.open_window(ShiftDetailsWindow(self.db, scheduled, self.update_shift_status))
+                      self.open_window(ShiftDetailsWindow(self.db, scheduled, self.handle_data_update))
                  else:
-                      self.open_window(DayShiftsWindow(self.db, today_str, self.update_shift_status))
+                      self.open_window(DayShiftsWindow(self.db, today_str, self.handle_data_update))
         elif widget_id in ["wallets-row", "personal-wallet", "company-wallet"]:
              from .wallet import WalletWindow
-             self.open_window(WalletWindow(self.db, on_close=self.update_wallets))
+             self.open_window(WalletWindow(self.db, on_close=self.handle_data_update))
 
     async def on_button_pressed(self, event: CustomButton.Pressed) -> None:
         """معالجة ضغط الأزرار"""
@@ -271,13 +219,13 @@ class DashboardScreen(Screen):
              if not is_allowed:
                  self.notify(msg, severity="error")
                  return
-             self.open_window(AddOrderWindow(self.db, callback=self.update_wallets))
+             self.open_window(AddOrderWindow(self.db, callback=self.handle_data_update))
         elif btn_id == "btn_wallet":
              from .wallet import WalletWindow
-             self.open_window(WalletWindow(self.db, on_close=self.update_wallets))
+             self.open_window(WalletWindow(self.db, on_close=self.handle_data_update))
         elif btn_id == "btn_settings":
              from .settings import SettingsWindow
-             self.open_window(SettingsWindow(self.db, callback=self.update_wallets))
+             self.open_window(SettingsWindow(self.db, callback=self.handle_data_update))
         elif btn_id == "btn_shift":
              from .shift import CalendarWindow
              self.open_window(CalendarWindow(self.db))
@@ -287,18 +235,16 @@ class DashboardScreen(Screen):
              from .history import OrderHistoryWindow
              self.open_window(OrderHistoryWindow(self.db))
         elif btn_id == "btn_analysis":
-             from .history import OrderHistoryWindow
-             history = OrderHistoryWindow(self.db)
-             history.show_chart_only = True
-             self.open_window(history)
+             from .history import AnalysisWindow
+             self.open_window(AnalysisWindow(self.db))
         elif btn_id == "btn_shift_history":
              from .shift import ShiftsHistoryWindow
              self.open_window(ShiftsHistoryWindow(self.db))
         elif btn_id == "btn_settlement":
              from .settlement import SettlementWindow
-             self.open_window(SettlementWindow(self.db, callback=self.update_wallets))
+             self.open_window(SettlementWindow(self.db, callback=self.handle_data_update))
              
-        self.update_wallets()
+        self.handle_data_update()
 
     def update_wallets(self) -> None:
         """تحديث عرض المحافظ"""
@@ -321,11 +267,21 @@ class DashboardScreen(Screen):
         """تحديث الإحصائيات"""
         try:
             avg = self.db.get_average_profit_per_day_with_orders()
-            today = datetime.now().strftime("%Y-%m-%d")
-            all_orders = self.db.get_all_orders(limit=1000)
-            today_orders = [o for o in all_orders if o['datetime'].startswith(today)]
+            today_orders = self.db.get_all_orders(period="Today")
+            
             today_profit = sum(o['delivery_fee'] + o['tip_cash'] + o['tip_visa'] for o in today_orders)
-            txt = f"Today's Profit: {today_profit:.2f} EGP\nDaily Average: {avg:.2f} EGP\nTotal Orders: {len(today_orders)}"
-            self.query_one("#stats-display").update(format_arabic(txt))
+            
+            # Determine active shift stats if available
+            status_data = self.db.get_dashboard_status()
+            shift_info = ""
+            if status_data.get('state') == 'SHIFT_ACTIVE':
+                 # Calculate elapsed time in simple terms
+                 elapsed = status_data.get('elapsed_seconds', 0)
+                 e_h, e_rem = divmod(elapsed, 3600)
+                 e_m = e_rem // 60
+                 shift_info = f" | Shift active: [b]{e_h}h {e_m}m[/]"
+            
+            txt = f" Today: [b]{today_profit:.2f}[/] EGP | Orders: [b]{len(today_orders)}[/]{shift_info} | Avg Day: [b]{avg:.2f}[/] EGP"
+            # Stats update removed since footer is deleted
         except:
-            self.query_one("#stats-display").update("Stats Error")
+            pass

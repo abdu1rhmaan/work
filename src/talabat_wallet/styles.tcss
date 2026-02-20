@@ -4,8 +4,21 @@ Screen {
 }
 
 #dashboard {
-    padding: 1 2;
+    padding: 0;
     height: 100%;
+    background: #0d1117; /* Deep Navy Black Background */
+    overflow: hidden; /* Prevent scrolling on main dashboard */
+}
+
+#desktop {
+    background: #0d1117;
+    height: 100%;
+    width: 100%;
+}
+
+#dashboard-layout {
+    height: 1fr;
+    width: 100%;
 }
 
 #info-row {
@@ -70,22 +83,15 @@ Screen {
     color: white;
 }
 
+/* Fix grid spacing */
 #main-buttons {
     layout: grid;
     grid-size: 2;
+    grid-columns: 1fr 1fr;
     grid-gutter: 1 2;
     height: auto;
     margin-bottom: 1;
-}
-
-CustomButton {
-    width: 100%;
-    height: 1;
-    min-height: 1;
-    background: $boost;
-    color: $text;
-    border: none;
-    padding: 0;
+    padding: 0 1;
 }
 
 Button {
@@ -93,11 +99,19 @@ Button {
     min-height: 1;
 }
 
-CustomButton:focus, Button:focus, .option-button:focus {
-    /* Prevent default blue focus ring and flash */
+CustomButton:focus, Button:focus, Input:focus, Select:focus, .option-button:focus {
     outline: none;
     border: none;
+    background: #1c2228;
+    color: white;
     text-style: bold;
+}
+
+/* Global Navigation & Scrollbars */
+* {
+    scrollbar-color: #ff8c00;
+    scrollbar-color-hover: #ffad33;
+    scrollbar-size: 1 1;
 }
 
 CustomButton:hover, Button:hover, .option-button:hover {
@@ -105,44 +119,82 @@ CustomButton:hover, Button:hover, .option-button:hover {
     color: white;
 }
 
-/* 🛡️ Block blue flash on Dashboard buttons when auto-focused */
-#main-buttons CustomButton:focus {
-    background: #1a1a1a;
-    color: white;
+CustomButton {
+    width: 100%;
+    height: 1;
+    min-height: 1;
+    background: $surface-lighten-1; /* 🏮 Brighter background for better contrast */
+    color: $text;
+    border: none;
+    padding: 0;
 }
 
-/* 🧊 Window Mode: Block background interactions */
+/* 🛡️ Block blue flash on Dashboard buttons when auto-focused */
+#main-buttons CustomButton:focus {
+    background: $surface-lighten-1;
+    color: $text;
+}
+
+/* 🧊 Window Mode: Subtle Dimming - keep background visible */
 .window-mode #info-row,
 .window-mode #wallets-row,
 .window-mode #main-buttons,
-.window-mode #stats-container {
-    tint: #000000 30%; /* Lighter tint to keep dashboard vibrant */
-}
 
-.window-mode #dashboard-layout CustomButton:hover,
-.window-mode #dashboard-layout Button:hover,
-.window-mode #dashboard-layout ListItem:hover,
-.window-mode #dashboard-layout .status-header:hover {
+/* 🛡️ Window Mode: Freeze hover on dashboard background elements */
+/* Keep appearance exactly as resting state — no color change on hover */
+.window-mode #main-buttons CustomButton:hover {
     background: $boost;
     color: $text;
     text-style: none;
 }
 
+.window-mode #info-row Static:hover,
+.window-mode #info-row Static:hover,
+.window-mode #info-row Label:hover {
+    background: $primary-darken-2;
+    color: $text;
+    text-style: none;
+}
+
+.window-mode #wallets-row WalletDisplay:hover {
+    background: $primary-darken-2;
+    color: $text;
+    text-style: none;
+}
+
+
+.window-mode .status-header:hover,
+.window-mode #shift-status-header:hover {
+    background: $primary-darken-2;
+    color: $text;
+    text-style: none;
+}
+
 ListItem:hover {
-    background: #0045e6 30%;
+    background: $primary-darken-1;
 }
 
-#stats-container {
-    height: auto;
-    border: round $primary;
-    padding: 1 2;
-    background: $panel;
-}
-
-#stats-display {
+.history-row {
+    height: 1;
+    min-height: 1;
     width: 100%;
-    text-align: center;
+    padding: 0 1;
+    background: $boost;
+    margin-bottom: 0;
 }
+
+.history-row:hover {
+    background: $primary-darken-1;
+    color: white;
+}
+
+.shift-history-row:hover {
+    background: $primary-darken-1;
+    color: white;
+}
+
+/* Stats Footer — Professional Themed Panel */
+/* Global Footer removed as requested */
 
 /* Modal Screens Styles */
 
@@ -151,13 +203,120 @@ ModalScreen {
     align: center middle;
 }
 
+/* ===== UNIFIED BASE WINDOW SYSTEM ===== */
+/* ===== UNIFIED BASE WINDOW SYSTEM ===== */
+BaseWindow {
+    width: auto;
+    height: auto;
+    max-width: 90%;          /* 📏 Requirement: Use max 90% */
+    max-height: 90%;         /* 📏 Requirement: Use max 90% */
+    background: #1c2228;
+    border: heavy $primary; 
+    padding: 0;
+    margin: 0;
+    position: absolute;
+    box-sizing: border-box;
+    layer: popup;
+    overflow: hidden;
+    
+    /* 🌑 Shadow Simulation: Use a thick dark border on right/bottom only */
+    border-bottom: inner #000000;
+    border-right: inner #000000;
+    /* Maintain primary styling without overriding the layout */
+    border-top: solid $primary;
+    border-left: solid $primary;
+}
+
+BaseWindow .window-content {
+    width: 100%;
+    height: auto;           /* 📏 Grows with content */
+    max-height: 100%;       /* 📏 But stays within BaseWindow limits */
+    padding: 1 2;
+    overflow-y: auto;       /* 💌 Enable scroll if content is too tall */
+    scrollbar-gutter: stable;
+}
+
+.window-content ListView, 
+.window-content DataTable {
+    height: auto;           /* 📏 Shrink to content */
+    min-height: 1;          /* 📏 1 row minimum */
+    max-height: 12;         /* 📏 Scroll after 12 rows */
+    overflow-y: auto;       
+    margin-bottom: 1;
+    scrollbar-gutter: stable;
+}
+
+#history-content {
+    height: auto;
+    width: 100%;
+}
+
+#resize_handle {
+    dock: bottom;
+    width: 100%;
+    height: 1;
+    content-align: right bottom;
+    color: $primary-lighten-2;
+    background: transparent;
+    padding-right: 1;
+}
+
+#resize_handle:hover {
+    color: $accent;
+}
+
+BaseWindow:focus-within {
+    border: heavy $accent;  
+}
+
+/* 🏗️ Standardized Window Content */
+BaseWindow .window-content {
+    width: 100%;
+    padding: 1 2;
+    background: transparent;
+    overflow-y: auto; 
+    scrollbar-gutter: stable;
+}
+
+BaseWindow#wallet-dialog .window-content {
+    overflow-y: hidden; 
+}
+
+#expense-list {
+    height: 1fr;
+    max-height: 20;
+    overflow-y: auto;         /* 💌 Requirement: Only the list scrolls */
+    scrollbar-gutter: stable;
+}
+WindowHeader {
+    dock: top;
+    width: 100%;
+    height: 3;              /* 📏 Slightly taller for better touch target */
+    background: $primary-darken-3; /* 🎨 Darker distinct header background */
+    color: white;
+    layout: horizontal;
+    padding: 0 1;
+    margin: 0;
+    border-bottom: solid $primary;
+    content-align: left middle;
+}
+
+WindowHeader .window-title {
+    width: 1fr;
+    height: 100%;
+    content-align: left middle;
+    text-style: bold;
+    color: $accent-lighten-2;
+    padding-left: 1;
+}
+
 .modal-dialog {
+    box-sizing: border-box;
     width: 85%;
     max-width: 120;
     height: auto;
     max-height: 85%;
-    background: $surface;
-    border: thick $primary;
+    /* Removed background/border - Inherits from BaseWindow */
     padding: 1 2;
     overflow-y: auto;
 }
@@ -231,13 +390,14 @@ ModalScreen {
 }
 
 #shifts-history-dialog {
-    height: auto !important;
+    box-sizing: border-box;
+    height: auto;
     max-height: 80%;
     width: 85%;
     max-width: 90;
     layout: vertical;
-    padding: 1 2;
-    overflow-y: auto;
+    padding: 0 1;       /* 🚫 Was 1 2, reduced to minimize gap */
+    overflow-y: hidden; /* 🚫 No scrollbar on this legacy backdrop */
 }
 
 #shifts-history-dialog #dialog-buttons CustomButton {
@@ -250,14 +410,14 @@ ModalScreen {
 }
 
 #analysis-view {
-    height: 1fr;
-    min-height: 20;
-    margin-top: 1;
-    margin-bottom: 1;
+    height: auto;
+    min-height: 0;           /* 🚫 Requirement: Remove min-height */
+    margin: 0;
+    padding: 0 1;
+    padding-bottom: 0;       /* 🚫 Requirement: No bottom empty space */
     background: $surface;
     color: $text;
     border: round $primary;
-    padding: 0 1;
     width: 100%;
     content-align: center top;
 }
@@ -317,11 +477,24 @@ ModalScreen {
     color: $accent !important;
 }
 
+/* Wallet Transaction Colors */
+.txn-in, .txn-in .expense-amount {
+    color: $success !important;
+}
+
+.txn-out, .txn-out .expense-amount {
+    color: $error-lighten-1 !important;
+}
+
 #dialog-buttons {
+    dock: bottom;
     layout: horizontal;
-    height: auto;
+    height: 5;              /* 📏 Fixed height for docked area */
     align: center middle;
-    margin-top: 0;
+    margin-top: 1;
+    background: $surface;
+    border-top: solid $primary 20%;
+    padding: 1 0;
 }
 
 .close-icon-btn {
@@ -350,7 +523,52 @@ ModalScreen {
     max-width: 90;
     height: auto;
     max-height: 80%;
-    border: thick $primary;
+    /* Removed border */
+}
+
+#shift-info-display {
+    width: 100%;
+    margin-bottom: 1;
+    padding: 0 1;
+    color: $text-muted;
+}
+
+.inline-buttons {
+    layout: horizontal;
+    width: 100%;
+    height: auto;        /* 🚫 Was fixed height: 3 — caused gap */
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.inline-buttons CustomButton {
+    width: 1fr;
+    margin: 0 1;
+}
+
+.spaced-vertical {
+    width: 100%;
+    height: auto;
+}
+
+.spaced-vertical CustomButton {
+    margin-bottom: 1; /* 📏 Spacing between buttons in Break window */
+}
+
+.inline-group {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    align: center middle;
+    margin-bottom: 1;
+}
+
+.inline-group > * {
+    margin-right: 1;
+}
+
+.inline-group > *:last-child {
+    margin-right: 0;
 }
 
 TimePickerWidget {
@@ -420,25 +638,27 @@ TimePickerWidget {
     padding: 1 3;
 }
 
+/* Removed duplicate stats block */
+
 #add-order-dialog, #settlement-dialog, #db-mgmt-dialog, #order-details-dialog, #settlement-details-dialog, #wallet-dialog {
+    box-sizing: border-box;
     width: 85%;
     max-width: 80;
     height: auto;
     max-height: 85%;
-    background: $surface;
-    border: thick $primary;
+    /* Removed background/border */
     padding: 1;
     overflow: hidden;
     overflow-y: auto;
 }
 
 #txn-details-dialog {
+    box-sizing: border-box;
     width: 90%;
     max-width: 60;
     height: auto;
     max-height: 85%;
-    background: $surface;
-    border: thick $primary;
+    /* Removed background/border */
     padding: 1 2;
 }
 
@@ -450,11 +670,11 @@ TimePickerWidget {
     border: thick $error-darken-1;
 }
 
-#txn-details-dialog.txn-details-in #title {
+.txn-details-in #title {
     background: $success-darken-1;
 }
 
-#txn-details-dialog.txn-details-out #title {
+.txn-details-out #title {
     background: $error-darken-1;
 }
 
@@ -504,8 +724,8 @@ TimePickerWidget {
 
 #history-content, #settings-content, #prices-content, #settlement-content {
     width: 100%;
-    height: 1fr;
-    overflow-y: auto;
+    height: auto;       /* 🚫 Was 1fr — caused content to expand and fill empty space */
+    overflow-y: hidden; /* 🚫 No internal scrollbars */
 }
 
 .batch-group {
@@ -694,8 +914,7 @@ Input, Select {
     width: 100%;
     background: $surface;
     border: none;
-    overflow-y: scroll;
-    scrollbar-size: 0 0; /* إخفاء السكرول بار تماماً لمنع الشريط الأسود */
+    overflow-y: hidden;
 }
 
 HistoryRow {
@@ -811,16 +1030,18 @@ HistoryRow:focus {
 }
 
 #expense-buttons {
-    margin-top: 1;
-    height: 3;
+    margin-top: 0;
+    height: auto;      /* 🚫 Was fixed height: 3 — caused gap */
     content-align: center middle;
 }
 
 #expense-list {
-    height: 10;
-    margin-top: 1;
+    height: auto;
+    max-height: 10;        /* 💌 Safe max-height: Wallet NEEDS a list area for scrolling */
+    overflow-y: auto;      /* ✅ ONLY window allowed a scrollbar */
+    margin-top: 0;
     border: solid #1a2535;
-    background: #0c1017; /* Navy Background */
+    background: #0c1017;
 }
 
 .divider {
@@ -830,34 +1051,61 @@ HistoryRow:focus {
     margin: 1 0;
 }
 
-.expense-row-content {
+.expense-row-content, 
+.history-row-content,
+.shift-row-content {
+    layout: horizontal;
+    height: 1;
+    width: 100%;
     padding: 0 1;
+    background: #1a1a1a;    /* 🌑 Dark background (classic) */
 }
 
-.expense-date {
+.expense-row-content:hover, 
+.history-row-content:hover,
+.shift-row-content:hover {
+    background: #2b2b2b;    /* 🌑 Subtle highlight */
+}
+
+ListItem:focus {
+    background: #333333;
+    border: none;
+}
+
+.expense-date, .col-date {
     width: 12;
     color: $text-muted;
 }
 
-.expense-desc {
+.expense-desc, .col-type {
     width: 1fr;
 }
 
-.expense-amount {
+.expense-amount, .col-profit {
     width: 10;
     text-align: right;
-    color: $success;
     text-style: bold;
 }
 
 /* Enhanced Wallet Styles */
 #wallet-stats-bar {
-    height: 3;
+    height: 1; /* 📏 Thinner bar */
     background: $primary-darken-2;
     color: white;
     content-align: center middle;
-    border: panel $primary;
+    border: none; /* 🚫 Remove panel border for compactness */
     margin-bottom: 1;
+}
+
+#wallets-horizontal {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+}
+
+#wallets-horizontal WalletDisplay {
+    width: 1fr;
+    margin: 0;
 }
 
 /* Calendar Styles */
@@ -910,8 +1158,10 @@ HistoryRow:focus {
     grid-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     height: 3;
     padding: 0 1;
-    background: $primary-darken-2;
-    border-bottom: heavy $primary;
+    background: $primary-darken-3;
+    color: $accent;
+    border-bottom: heavy $accent;
+    margin-top: 1;
 }
 
 .day-name {
@@ -922,6 +1172,11 @@ HistoryRow:focus {
     content-align: center middle;
 }
 
+CalendarWindow {
+    height: auto;
+    min-height: 20;
+}
+
 #calendar-grid {
     layout: grid;
     grid-size: 7;
@@ -929,12 +1184,15 @@ HistoryRow:focus {
     grid-gutter: 0;
     padding: 0 1;
     background: $surface;
+    width: 100%;
     height: auto;
+    min-height: 15;
 }
 
 .day-cell {
     width: 100%;
     height: 3;
+    content-align: center middle;
     background: $surface;
     color: $text;
     border: solid $primary 10%;
@@ -960,11 +1218,15 @@ HistoryRow:focus {
 .day-cell.has-shift {
     border-bottom: heavy $success;
     background: $success 10%;
+    color: $warning;
+    text-style: bold;
 }
 
 .day-cell.shifts-completed {
     border-bottom: heavy cyan;
     background: cyan 8%;
+    color: $success;
+    text-style: dim;
 }
 
 .day-cell.has-shift Button {
@@ -1031,15 +1293,15 @@ HistoryRow:focus {
 
 .close-button:hover,
 .close-icon-btn:hover {
-    background: #d32f2f !important;
-    color: black !important;
+    background: #d32f2f;
+    color: black;
 }
 
 /* 🛡️ Explicitly block blue flash on focus for Close buttons */
 .close-button:focus,
 .close-icon-btn:focus {
-    background: #8b0000 !important;
-    color: white !important;
+    background: #8b0000;
+    color: white;
     outline: none;
 }
 
@@ -1085,37 +1347,20 @@ HistoryRow:focus {
     color: #00ffcc;
 }
 
-#shifts-history-header {
-    height: 1;
-    width: 100%;
-    background: #111820;
-    color: #9ed0ff;
-    text-style: bold;
-    padding: 0 1;
-    border-bottom: solid #1e2732;
-}
-
-.shift-history-row {
-    height: 1;
-    layout: horizontal;
-    width: 100%;
-    border-bottom: solid #1a2535;
-    background: #0c1017;
-}
-
-.shift-history-row:hover {
-    background: #131c27;
-    color: white;
-}
-
-.shift-row-container {
-    width: 100%;
-    height: 1;
-}
-
-.shift-row-container Label, #shifts-history-header Label {
+.expense-row-content Label, 
+.history-row-content Label,
+.shift-row-content Label, 
+#shifts-history-header Label {
     height: 1;
     content-align: center middle;
+    color: #ffffff !important; /* 🛡️ Absolute visibility on dark backgrounds */
+}
+
+#size-debug {
+    width: auto;
+    color: #9ed0ff;
+    text-style: bold;
+    content-align: right middle;
 }
 
 .shift-date {
@@ -1138,40 +1383,44 @@ HistoryRow:focus {
     content-align: center middle;
 }
 
-/* Fixed widths to ensure perfect alignment */
+/* Fixed widths to ensure perfect alignment & wider look */
 .shift-date {
-    width: 35% !important;
+    width: 30% !important;
     text-align: left !important;
-    color: $text-muted;
+    color: white !important; /* 🛡️ Force visibility */
 }
 
-.shift-duration {
-    width: 25% !important;
+.shift-status {
+    width: 40% !important;
     text-align: center;
-    color: $accent;
+    color: $accent !important;
 }
 
 .shift-orders {
-    width: 20% !important;
-    text-align: center;
+    width: 30% !important;
+    text-align: right;
+    padding-right: 2;
+    color: $success !important;
 }
+
 
 /* Pure consolidated shift styles above */
 
-/* Cleaned up old experimental classes */
-
-.break-row {
-    height: auto;
-    min-height: 2;
-    align: center middle;
-    width: 100%;
+.shift-history-row {
+    background: $panel;
     margin-bottom: 1;
 }
 
-.break-options {
-    padding: 1 0;
-    background: #1c2228; /* Light Navy */
+.shift-history-row:hover {
+    background: $primary-darken-2;
 }
+
+.shift-history-row:hover Label {
+    color: #4db8ff !important;
+    text-style: bold;
+}
+
+/* Cleaned up old experimental classes */
 
 /* Final Cleanup */
 
@@ -1184,8 +1433,11 @@ HistoryRow:focus {
 
 .invalid {
     border: thick $error !important;
-    background: $error-darken-3 50%;
-    color: $error-lighten-1;
+    background: $error-darken-3 40%;
+    color: white;
+}
+.invalid:focus {
+    border: thick $error !important;
 }
 
 /* Settlement Dual Modes & Confirmation */
@@ -1354,15 +1606,18 @@ HistoryRow:focus {
 
 .col-sel { width: 4; }
 .col-id { width: 6; }
-.col-date { width: 1fr; }
-.col-type { width: 15; }
-.col-profit { width: 12; }
+.col-date { width: 35% !important; color: $text; }
+.col-type { width: 35% !important; color: $text; }
+.col-status { width: 35% !important; color: $text; }
+.col-profit { width: 30% !important; color: $text; }
+.col-orders { width: 30% !important; color: $text; }
 
 /* Ensure scrollbars are visible in windows */
 .window-content {
-    scrollbar-gutter: stable;
+    scrollbar-gutter: stable; /* 🏁 Stable layout against scrollbars appearing */
     scrollbar-color: $primary-lighten-1 20%;
     scrollbar-size: 1 1;
+    min-width: 35;          /* 🛡️ Redundant safety */
 }
 
 /* ===== UNIFIED NAVY LOOK & OUTLINING ===== */
@@ -1375,9 +1630,9 @@ HistoryRow:focus {
 #details-content, 
 #edit-content {
     background: transparent;
-    padding: 1;
-    border: solid #ffffff 3%; /* Subtle outlining (Takh-teet) */
-    margin: 0 0 1 0;
+    padding: 0 1;           /* 📏 Tighter padding */
+    border: solid #ffffff 3%; 
+    margin: 0 0 0 0;        /* 📏 Removed margins for compactness */
 }
 
 #history-list, 
@@ -1389,16 +1644,6 @@ HistoryRow:focus {
 }
 
 /* ===== STABLE BUTTON HOVERS ===== */
-CustomButton:hover {
-    background: #0056ff !important;
-    color: white !important;
-}
-
-CustomButton:focus {
-    background: #0045e6 !important;
-    color: white !important;
-}
-
 .option-button:hover {
     background: #2a3441;
 }
@@ -1407,4 +1652,37 @@ CustomButton:focus {
     background: #2a3441;
     color: white;
 }
+
+Input {
+    background: #0d1117;
+    border: solid #30363d;
+    padding: 0 1;
+    color: #c9d1d9;
+    margin-bottom: 1;
+    height: 3;
+}
+
+Input:focus {
+    border: heavy $accent;
+    background: #161b22;
+}
+
+Input.-valid {
+    border: heavy $success;
+}
+
+Input.-invalid {
+    border: heavy $error;
+}
+
+#days-header {
+    layout: grid;
+    grid-size: 7;           /* 📅 7 columns for days */
+    height: 3;
+    background: $primary-darken-3;
+    color: $accent;
+    border-bottom: heavy $accent;
+    margin-top: 1;
+}
+
 

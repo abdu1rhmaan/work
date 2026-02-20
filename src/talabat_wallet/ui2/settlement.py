@@ -3,14 +3,17 @@ from datetime import datetime
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Button, Static
-from .window import DraggableWindow
-from ..ui.components import CustomButton, ArabicInput
+from textual import on
+from .window import BaseWindow
+from .components import CustomButton, ArabicInput
 from ..engine import AccountingEngine
 
-class ManualSettlementWindow(DraggableWindow):
+class ManualSettlementWindow(BaseWindow):
+    WINDOW_ID = "manual_settlement"
     """نافذة التسوية اليدوية (MDI)"""
+    WINDOW_ID = "manual_settlement"
     def __init__(self, callback=None):
-        super().__init__(title="MANUAL SETTLEMENT")
+        super().__init__(title="MANUAL SETTLEMENT", width=50)  # 📏 No fixed height — auto-size
         self.callback = callback
         self.mode = "PAY"
 
@@ -45,10 +48,12 @@ class ManualSettlementWindow(DraggableWindow):
         elif event.button.id == "cancel-manual":
             self.close()
 
-class SettlementWindow(DraggableWindow):
+class SettlementWindow(BaseWindow):
+    WINDOW_ID = "settlement"
     """نافذة التسوية (MDI)"""
+    WINDOW_ID = "settlement"
     def __init__(self, db, callback=None):
-        super().__init__(title="SETTLEMENT")
+        super().__init__(title="SETTLEMENT", width=65)  # 📏 No fixed height — stops at last button
         self.db = db
         self.callback = callback
         self.settings = self.db.get_settings()
@@ -63,6 +68,7 @@ class SettlementWindow(DraggableWindow):
         self.amount_input = ArabicInput(placeholder="0.0", id="settlement-amount")
         yield self.amount_input
         yield Static("Transaction Direction:")
+        # Display label will be set in update_ui_state/update_preview
         self.direction_toggle = CustomButton("PAY TO COMPANY", id="direction-toggle", custom_width=25)
         yield self.direction_toggle
         with Vertical(id="receive-mode-group"):
@@ -78,26 +84,43 @@ class SettlementWindow(DraggableWindow):
         yield Static("", id="effect-preview")
         with Horizontal(id="dialog-buttons"):
             yield CustomButton("Process", id="process-settlement")
-            self.manual_btn = CustomButton("Manual", id="manual-settlement", classes="hidden")
-            yield self.manual_btn
+            yield CustomButton("Manual", id="manual-settlement") # Always visible? 
             yield CustomButton("Close", id="close-settlement")
 
     def on_mount(self) -> None:
         self.update_ui_state()
         self.update_preview()
 
+    # 🚀 REAL-TIME UPDATES
+    @on(BaseWindow.OrderAdded)
+    @on(BaseWindow.DataChanged)
+    def handle_data_update(self) -> None:
+        """Update balance instantly if orders are added elsewhere"""
+        self.settings = self.db.get_settings()
+        company_balance = self.settings['company_wallet']
+        balance_status = "Company owes you" if company_balance > 0 else "You owe company"
+        self.query_one("#balance-info").update(f"{balance_status}: {abs(company_balance):.2f} EGP")
+        self.update_preview()
+
+    def refresh_ui(self, settings: dict) -> None:
+        """Reactive UI: Handle global settings changes (e.g. mode change)"""
+        self.settings = settings
+        self.handle_data_update()
+
     def update_ui_state(self) -> None:
         is_receive = "RECEIVE" in self.direction_toggle.label.plain
-        self.query_one("#receive-mode-group").display = is_receive
+        self.query_one("#receive-mode-group").display = "block" if is_receive else "none"
         if not is_receive: self.receive_mode = "NORMAL"
         if self.receive_mode == "NORMAL":
             self.normal_btn.add_class("active"); self.salary_btn.remove_class("active")
-            self.query_one("#confirmation-box").add_class("hidden")
-            self.manual_btn.add_class("hidden")
+            self.query_one("#confirmation-box").display = "none"
+            self.query_one("#manual-settlement").display = "none"
         else:
             self.salary_btn.add_class("active"); self.normal_btn.remove_class("active")
-            self.query_one("#confirmation-box").remove_class("hidden")
-            self.manual_btn.remove_class("hidden")
+            self.query_one("#confirmation-box").display = "block"
+            self.query_one("#manual-settlement").display = "block"
+        # 🔄 Force layout recalculation after toggling hidden widgets
+        self.refresh()
 
     def update_preview(self) -> None:
         try:
@@ -142,6 +165,8 @@ class SettlementWindow(DraggableWindow):
             'personal_wallet_effect': p_effect, 'company_wallet_effect': 0,
             'metadata': json.dumps({"manual_mode": mode})
         })
+        # 🚀 Broadcast update
+        self.post_message(self.OrderAdded())
         if self.callback: self.callback()
         self.close()
 
@@ -161,6 +186,8 @@ class SettlementWindow(DraggableWindow):
                 'tip_cash': 0, 'tip_visa': 0, 'delivery_fee': 0,
                 'personal_wallet_effect': p_effect, 'company_wallet_effect': c_effect
             })
+            # 🚀 Broadcast update
+            self.post_message(self.OrderAdded())
             if self.callback: self.callback()
             self.close()
         except Exception as e: self.notify(str(e), severity="error")
